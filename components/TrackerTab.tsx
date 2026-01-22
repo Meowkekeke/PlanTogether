@@ -1,0 +1,436 @@
+import React, { useState } from 'react';
+import { Activity, ActivityNature, RoomData } from '../types';
+import { DoodleButton } from './DoodleButton';
+import { Plus, BarChart3, X, Trash2, ArrowLeft, User, Trophy, Calendar, CheckCircle2, Repeat } from 'lucide-react';
+
+interface TrackerTabProps {
+  activities: Activity[];
+  userId: string;
+  roomData: RoomData; // Needed for checking partner ID
+  onAddActivity: (title: string, nature: ActivityNature) => void;
+  onLogOccurrence: (activityId: string, details: { timestamp: number, durationMinutes?: number, quantity?: number, note?: string, isMilestone?: boolean }) => void;
+  onDeleteActivity: (activity: Activity) => void;
+}
+
+export const TrackerTab: React.FC<TrackerTabProps> = ({ 
+  activities, 
+  userId, 
+  roomData,
+  onAddActivity, 
+  onLogOccurrence,
+  onDeleteActivity 
+}) => {
+  // Views: 'board' | 'create' | 'log' | 'summary'
+  const [view, setView] = useState<'board' | 'create' | 'log' | 'summary'>('board');
+  
+  // Selection States
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  
+  // Form States
+  const [newTitle, setNewTitle] = useState('');
+  const [newNature, setNewNature] = useState<ActivityNature>('ongoing');
+  
+  // Logging States
+  const [logDetails, setLogDetails] = useState({
+    timeOffset: 'now', // 'now' | 'earlier' | 'yesterday'
+    isMilestone: false,
+  });
+
+  // --- Helpers ---
+  const getStats = (activity: Activity) => {
+    // Total lifetime stats
+    const myLogs = activity.logs.filter(l => l.userId === userId);
+    const partnerLogs = activity.logs.filter(l => l.userId !== userId);
+    
+    return {
+        me: {
+            sessions: myLogs.length,
+            projects: myLogs.filter(l => l.isMilestone).length
+        },
+        partner: {
+            sessions: partnerLogs.length,
+            projects: partnerLogs.filter(l => l.isMilestone).length
+        }
+    };
+  };
+
+  // --- Handlers ---
+  const startCreate = () => {
+    setNewTitle('');
+    setNewNature('ongoing');
+    setView('create');
+  };
+
+  const submitCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    onAddActivity(newTitle, newNature);
+    setView('board');
+  };
+
+  const startLog = (activity: Activity) => {
+    setSelectedActivity(activity);
+    setLogDetails({ timeOffset: 'now', isMilestone: false });
+    setView('log');
+  };
+
+  const submitLog = () => {
+    if (!selectedActivity) return;
+    
+    let timestamp = Date.now();
+    if (logDetails.timeOffset === 'earlier') timestamp -= 1000 * 60 * 60 * 2; // Approx 2 hours ago
+    if (logDetails.timeOffset === 'yesterday') timestamp -= 1000 * 60 * 60 * 24;
+
+    onLogOccurrence(selectedActivity.id, {
+      timestamp,
+      isMilestone: logDetails.isMilestone
+    });
+    
+    setView('board');
+    setSelectedActivity(null);
+  };
+
+  // --- Render Views ---
+
+  const renderCreate = () => (
+    <div className="bg-white p-6 rounded-[2rem] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-bottom-10">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">New Activity</h2>
+        <button onClick={() => setView('board')} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"><X /></button>
+      </div>
+
+      <form onSubmit={submitCreate} className="space-y-6">
+        <div>
+          <label className="block text-sm font-bold text-gray-500 mb-2 uppercase tracking-wide">What is it?</label>
+          <input 
+            autoFocus
+            className="w-full text-2xl font-bold border-b-4 border-black/10 focus:border-black focus:outline-none bg-transparent py-2 placeholder-gray-300"
+            placeholder="e.g. Book Club, Gym, Art..."
+            value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-gray-500 mb-3 uppercase tracking-wide">Tracking Type</label>
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              type="button"
+              onClick={() => setNewNature('ongoing')}
+              className={`p-4 rounded-xl border-4 text-left transition-all flex items-start gap-4 ${newNature === 'ongoing' ? 'bg-[#fffbeb] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white border-gray-100 text-gray-400'}`}
+            >
+              <div className={`p-2 rounded-full border-2 ${newNature === 'ongoing' ? 'bg-[#fde047] border-black' : 'border-gray-200'}`}>
+                <Repeat size={20} />
+              </div>
+              <div>
+                  <div className="font-bold text-lg">Continuous Project</div>
+                  <div className="text-xs font-bold opacity-60 mt-1">
+                      Something you work on over time and eventually finish (e.g. Reading a Book, Knitting).
+                  </div>
+              </div>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setNewNature('session')}
+              className={`p-4 rounded-xl border-4 text-left transition-all flex items-start gap-4 ${newNature === 'session' ? 'bg-[#eff6ff] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white border-gray-100 text-gray-400'}`}
+            >
+              <div className={`p-2 rounded-full border-2 ${newNature === 'session' ? 'bg-[#93c5fd] border-black' : 'border-gray-200'}`}>
+                <CheckCircle2 size={20} />
+              </div>
+              <div>
+                  <div className="font-bold text-lg">Single Session</div>
+                  <div className="text-xs font-bold opacity-60 mt-1">
+                      Something you just "do" without a specific completion goal (e.g. Workout, Meditation).
+                  </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <DoodleButton type="submit" className="w-full">Create Card</DoodleButton>
+      </form>
+    </div>
+  );
+
+  const renderLog = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-[#fffbeb] w-full max-w-sm max-h-[90vh] flex flex-col rounded-[2rem] border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] relative">
+         
+         {/* Header - Fixed */}
+         <div className="p-6 pb-2 shrink-0 flex justify-between items-start">
+             <div className="pr-8">
+                <div className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Logging</div>
+                <h2 className="text-3xl font-bold break-words leading-tight">{selectedActivity?.title}</h2>
+             </div>
+             <button onClick={() => setView('board')} className="p-2 hover:bg-black/5 rounded-full"><X /></button>
+         </div>
+
+         {/* Scrollable Content */}
+         <div className="overflow-y-auto p-6 pt-2 space-y-6">
+             <div className="bg-white p-6 rounded-2xl border-2 border-black/10 text-center space-y-4">
+                 
+                 {/* Main Action */}
+                 <DoodleButton onClick={submitLog} className="w-full py-4 text-2xl bg-[#86efac]">
+                    +1 Session
+                 </DoodleButton>
+                 
+                 {/* Project Completion Toggle - Only for 'ongoing' projects */}
+                 {selectedActivity?.nature === 'ongoing' && (
+                    <div className="pt-2 border-t-2 border-dashed border-gray-100">
+                        <label className="flex items-center gap-3 cursor-pointer p-3 hover:bg-gray-50 rounded-xl transition-colors border-2 border-transparent hover:border-gray-100">
+                            <div className={`w-8 h-8 rounded-lg border-2 border-black flex items-center justify-center transition-colors shrink-0 ${logDetails.isMilestone ? 'bg-[#fde047]' : 'bg-white'}`}>
+                                {logDetails.isMilestone && <Trophy size={16} />}
+                            </div>
+                            <div className="text-left">
+                                <input 
+                                    type="checkbox" 
+                                    className="hidden"
+                                    checked={logDetails.isMilestone}
+                                    onChange={e => setLogDetails({...logDetails, isMilestone: e.target.checked})}
+                                />
+                                <div className="font-bold text-sm">I finished the project!</div>
+                                <div className="text-xs text-gray-400 font-bold leading-tight">(e.g. Finished the entire book)</div>
+                            </div>
+                        </label>
+                    </div>
+                 )}
+             </div>
+
+             {/* Time Adjust */}
+             <div className="bg-white p-2 rounded-xl border-2 border-gray-100 flex justify-between gap-2 text-xs font-bold text-gray-400">
+                <button onClick={() => setLogDetails({...logDetails, timeOffset: 'now'})} className={`flex-1 py-2 rounded-lg transition-colors ${logDetails.timeOffset === 'now' ? 'bg-black text-white' : 'hover:bg-gray-100'}`}>Now</button>
+                <button onClick={() => setLogDetails({...logDetails, timeOffset: 'earlier'})} className={`flex-1 py-2 rounded-lg transition-colors ${logDetails.timeOffset === 'earlier' ? 'bg-black text-white' : 'hover:bg-gray-100'}`}>Earlier</button>
+                <button onClick={() => setLogDetails({...logDetails, timeOffset: 'yesterday'})} className={`flex-1 py-2 rounded-lg transition-colors ${logDetails.timeOffset === 'yesterday' ? 'bg-black text-white' : 'hover:bg-gray-100'}`}>Yesterday</button>
+             </div>
+         </div>
+      </div>
+    </div>
+  );
+
+  const renderSummary = () => {
+     const now = new Date();
+     const monthName = now.toLocaleString('default', { month: 'long' });
+     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+     const daysArray = Array.from({length: daysInMonth}, (_, i) => i + 1);
+
+     // Helper to get daily counts for chart
+     const getChartData = (activity: Activity) => {
+        const counts = new Array(daysInMonth).fill(0);
+        let totalSessions = 0;
+        let totalProjects = 0;
+
+        activity.logs.forEach(l => {
+            const d = new Date(l.timestamp);
+            if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+                const dayIndex = d.getDate() - 1;
+                counts[dayIndex]++;
+                totalSessions++;
+                if (l.isMilestone) totalProjects++;
+            }
+        });
+        const max = Math.max(...counts, 1); 
+        return { counts, max, totalSessions, totalProjects };
+     };
+
+     return (
+         <div className="space-y-6 animate-in slide-in-from-bottom-4">
+             <div className="flex items-center gap-2 mb-4">
+                 <button onClick={() => setView('board')} className="p-2 bg-white rounded-full border-2 border-black hover:bg-gray-100"><ArrowLeft size={20}/></button>
+                 <h2 className="text-2xl font-bold">{monthName} Recap</h2>
+             </div>
+
+             <div className="space-y-6">
+                 {activities.map(act => {
+                     const { counts, max, totalSessions, totalProjects } = getChartData(act);
+                     if(totalSessions === 0) return null;
+
+                     return (
+                         <div key={act.id} className="bg-white p-5 rounded-3xl border-4 border-black shadow-sm">
+                             <div className="flex flex-wrap justify-between items-baseline mb-6 gap-2">
+                                 <h3 className="font-bold text-xl">{act.title}</h3>
+                                 <div className="flex gap-3 text-xs font-bold">
+                                     <span className="bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
+                                         {totalSessions} Sessions
+                                     </span>
+                                     {act.nature === 'ongoing' && (
+                                         <span className="bg-[#fef9c3] text-yellow-800 px-3 py-1.5 rounded-lg border border-yellow-200 flex items-center gap-1">
+                                             <Trophy size={12} /> {totalProjects} Finished
+                                         </span>
+                                     )}
+                                 </div>
+                             </div>
+                             
+                             {/* Bar Chart Container */}
+                             <div className="relative h-40 w-full flex items-end gap-[2px] sm:gap-1.5 border-b-2 border-black/10 pb-1">
+                                {/* Max line reference (optional, keeps chart readable) */}
+                                <div className="absolute top-0 left-0 w-full border-t border-dashed border-gray-200 text-[9px] text-gray-300 font-bold">{max > 1 ? max : ''}</div>
+                                
+                                {daysArray.map((day, i) => {
+                                    const count = counts[i];
+                                    const heightPercent = (count / max) * 100;
+                                    const isWeekend = new Date(now.getFullYear(), now.getMonth(), day).getDay() % 6 === 0;
+                                    
+                                    return (
+                                        <div key={day} className="flex-1 flex flex-col justify-end h-full group relative">
+                                            {/* Tooltip */}
+                                            {count > 0 && (
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-black text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap font-bold pointer-events-none">
+                                                    Day {day}: {count}
+                                                </div>
+                                            )}
+                                            
+                                            {/* Bar */}
+                                            <div 
+                                                className={`w-full min-w-[4px] rounded-t-sm transition-all duration-500 relative ${count > 0 ? 'bg-[#86efac] border-x border-t border-black/20' : 'bg-transparent'}`}
+                                                style={{ height: count > 0 ? `${heightPercent}%` : '4px' }}
+                                            >
+                                                {/* Dot for 0 state to guide eye */}
+                                                {count === 0 && (
+                                                    <div className={`absolute bottom-0 left-0 w-full h-[2px] ${isWeekend ? 'bg-gray-300' : 'bg-gray-100'}`} />
+                                                )}
+                                            </div>
+                                            
+                                            {/* Axis Label */}
+                                            {(day === 1 || day % 5 === 0) && (
+                                                <span className="text-[9px] text-gray-400 font-bold absolute -bottom-5 left-1/2 -translate-x-1/2">{day}</span>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                             </div>
+                         </div>
+                     )
+                 })}
+                 
+                 {activities.every(a => a.logs.filter(l => new Date(l.timestamp).getMonth() === now.getMonth()).length === 0) && (
+                     <div className="text-center py-12 opacity-40">
+                        <BarChart3 className="w-16 h-16 mx-auto mb-2" />
+                        <p className="font-bold text-xl">No activity this month yet!</p>
+                     </div>
+                 )}
+             </div>
+         </div>
+     )
+  };
+
+  const renderBoard = () => (
+    <>
+       {/* Header Actions */}
+       <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+             <h2 className="text-xl font-bold">Your Activities</h2>
+             <button onClick={() => setView('summary')} className="p-1.5 bg-white border-2 border-black/10 rounded-lg hover:border-black transition-colors text-gray-400 hover:text-black" title="Monthly Summary">
+                <BarChart3 size={16} />
+             </button>
+          </div>
+       </div>
+
+       {/* The Board */}
+       <div className="space-y-4 pb-24">
+          {activities.length === 0 ? (
+              <div className="w-full py-12 text-center opacity-60">
+                  <div className="text-6xl mb-4">🍂</div>
+                  <p className="font-bold text-xl mb-2">Nothing here yet</p>
+                  <p className="text-sm">This space holds the things you do.</p>
+              </div>
+          ) : (
+              activities.map((activity, i) => {
+                  const stats = getStats(activity);
+                  
+                  return (
+                      <div 
+                        key={activity.id}
+                        className="w-full bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
+                      >
+                         {/* Card Header */}
+                         <div className="bg-yellow-50 p-3 border-b-2 border-black/10 flex justify-between items-center">
+                             <div className="flex items-center gap-2 overflow-hidden">
+                                {activity.nature === 'ongoing' ? <Repeat size={14} className="text-gray-400 shrink-0" /> : <CheckCircle2 size={14} className="text-gray-400 shrink-0" />}
+                                <h3 className="font-bold text-lg leading-tight truncate">{activity.title}</h3>
+                             </div>
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); if(confirm('Remove this card?')) onDeleteActivity(activity); }}
+                                className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                             >
+                                <Trash2 size={16} />
+                             </button>
+                         </div>
+
+                         {/* Split Body */}
+                         <div className="flex h-32">
+                            {/* LEFT: ME */}
+                            <div className="flex-1 border-r-2 border-black/10 flex flex-col items-center justify-center p-2 bg-white relative">
+                                <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Me</span>
+                                
+                                <div className="flex gap-4 mb-2 text-center">
+                                    <div>
+                                        <div className="text-2xl font-black">{stats.me.sessions}</div>
+                                        <div className="text-[9px] font-bold text-gray-400 uppercase">Sessions</div>
+                                    </div>
+                                    {/* Only show projects count if it's an ongoing project type */}
+                                    {activity.nature === 'ongoing' && (
+                                        <div>
+                                            <div className="text-2xl font-black text-[#facc15]">{stats.me.projects}</div>
+                                            <div className="text-[9px] font-bold text-gray-400 uppercase">Projects</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button 
+                                    onClick={() => startLog(activity)}
+                                    className="w-10 h-10 rounded-full bg-[#86efac] border-2 border-black flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                >
+                                    <Plus size={24} strokeWidth={3} />
+                                </button>
+                            </div>
+
+                            {/* RIGHT: PARTNER */}
+                            <div className="flex-1 flex flex-col items-center justify-center p-2 bg-gray-50/50 relative">
+                                <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Partner</span>
+                                
+                                <div className="flex gap-4 mb-2 text-center opacity-60">
+                                    <div>
+                                        <div className="text-2xl font-black">{stats.partner.sessions}</div>
+                                        <div className="text-[9px] font-bold text-gray-400 uppercase">Sessions</div>
+                                    </div>
+                                    {activity.nature === 'ongoing' && (
+                                        <div>
+                                            <div className="text-2xl font-black text-[#facc15]">{stats.partner.projects}</div>
+                                            <div className="text-[9px] font-bold text-gray-400 uppercase">Projects</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Visual placeholder for partner */}
+                                <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center opacity-30">
+                                    <User size={20} className="text-gray-400" />
+                                </div>
+                            </div>
+                         </div>
+                      </div>
+                  );
+              })
+          )}
+
+          {/* Add Button Card */}
+          <button 
+            onClick={startCreate}
+            className="w-full h-24 rounded-2xl border-4 border-black/10 border-dashed flex flex-col items-center justify-center gap-2 text-gray-300 hover:bg-black/5 hover:text-gray-500 transition-colors"
+          >
+              <Plus size={32} />
+              <span className="font-bold">Add New Activity</span>
+          </button>
+       </div>
+    </>
+  );
+
+  return (
+    <div className="relative min-h-[60vh]">
+       {view === 'board' && renderBoard()}
+       {view === 'create' && renderCreate()}
+       {view === 'log' && renderLog()}
+       {view === 'summary' && renderSummary()}
+    </div>
+  );
+};

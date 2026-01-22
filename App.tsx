@@ -1,0 +1,541 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Sprout, Copy, LogOut, Heart, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Share2 } from 'lucide-react';
+import { 
+  createRoom, joinRoom, subscribeToRoom, logMood, sendInteraction,
+  addActivity, logActivityOccurrence, deleteActivity,
+  addTodo, toggleTodo, deleteTodo,
+  addGoal, incrementGoal, deleteGoal,
+  getUUID
+} from './services/db';
+import { RoomData, Mood, InteractionType, TodoType, ActivityNature, Activity } from './types';
+import { MoodCard } from './components/MoodCard';
+import { MoodEditor } from './components/MoodEditor';
+import { DoodleButton } from './components/DoodleButton';
+import { InteractionBar } from './components/InteractionBar';
+import { TrackerTab } from './components/TrackerTab';
+import { ListTab } from './components/ListTab';
+import { GoalTab } from './components/GoalTab';
+
+// Utility for persistent User ID using robust UUID
+const getUserId = () => {
+  let id = localStorage.getItem('lovesync_uid');
+  if (!id) {
+    id = getUUID();
+    localStorage.setItem('lovesync_uid', id);
+  }
+  return id;
+};
+
+const App: React.FC = () => {
+  // Application State
+  const [userId] = useState(getUserId());
+  const [roomCode, setRoomCode] = useState<string | null>(localStorage.getItem('lovesync_code'));
+  const [roomData, setRoomData] = useState<RoomData | null>(null);
+  const [userName, setUserName] = useState<string>(localStorage.getItem('lovesync_name') || '');
+  
+  // UI State
+  const [mainTab, setMainTab] = useState<'mood' | 'track' | 'list' | 'goal'>('mood');
+  const [moodSubTab, setMoodSubTab] = useState<'me' | 'partner'>('me');
+  const [inputCode, setInputCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isEditingMood, setIsEditingMood] = useState(false);
+  const [showNameModal, setShowNameModal] = useState(!localStorage.getItem('lovesync_name'));
+  
+  // Animation State
+  const [animationType, setAnimationType] = useState<InteractionType | null>(null);
+  const lastInteractionRef = useRef<number>(0);
+
+  // Subscription Effect
+  useEffect(() => {
+    if (!roomCode) return;
+
+    const unsubscribe = subscribeToRoom(roomCode, (data) => {
+      setRoomData(data);
+
+      // Handle Interactions
+      if (data.lastInteraction) {
+        const { timestamp, senderId, type } = data.lastInteraction;
+        // Only animate if it's a new interaction and NOT sent by me
+        if (timestamp > lastInteractionRef.current && senderId !== userId) {
+          triggerAnimation(type);
+          lastInteractionRef.current = timestamp;
+        } 
+        // Sync ref on initial load to avoid playing old animations
+        else if (lastInteractionRef.current === 0) {
+            lastInteractionRef.current = timestamp;
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomCode, userId]);
+
+  const triggerAnimation = (type: InteractionType) => {
+    setAnimationType(type);
+    setTimeout(() => setAnimationType(null), 3000);
+  };
+
+  // Actions
+  const handleCreateRoom = async () => {
+    if (!userName.trim()) {
+      setShowNameModal(true);
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    try {
+      const code = await createRoom(userId, userName);
+      localStorage.setItem('lovesync_code', code);
+      setRoomCode(code);
+    } catch (err) {
+      setError('Failed to create room. Try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleJoinRoom = async () => {
+    if (!inputCode.trim()) return;
+    if (!userName.trim()) {
+      setShowNameModal(true);
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    const code = inputCode.toUpperCase().trim();
+    
+    try {
+      const success = await joinRoom(code, userId, userName);
+      if (success) {
+        localStorage.setItem('lovesync_code', code);
+        setRoomCode(code);
+      } else {
+        setError('Room not found or full!');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to join.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLeaveRoom = () => {
+    if(confirm("Are you sure you want to disconnect? You'll need the code to join again.")) {
+      localStorage.removeItem('lovesync_code');
+      setRoomCode(null);
+      setRoomData(null);
+    }
+  };
+
+  const saveName = () => {
+    if (userName.trim()) {
+      localStorage.setItem('lovesync_name', userName);
+      setShowNameModal(false);
+    }
+  };
+
+  const copyCode = async () => {
+    if (roomCode) {
+      try {
+        await navigator.clipboard.writeText(roomCode);
+        alert('Code copied! Send it to your partner.');
+      } catch (e) {
+        prompt("Copy this code and send it to your partner:", roomCode);
+      }
+    }
+  };
+
+  // --- Feature Handlers ---
+  const handleAddLog = async (mood: Mood, note: string) => {
+    if (!roomCode) return;
+    await logMood(roomCode, userId, userName, mood, note);
+    setIsEditingMood(false);
+  };
+  
+  const handleInteraction = async (type: InteractionType) => {
+      if (!roomCode) return;
+      await sendInteraction(roomCode, userId, type);
+  };
+
+  const handleClaimReward = async (reward: string) => {
+    if (!roomCode) return;
+    if(confirm(`Claim "${reward}"? This will add it to your "WE" list.`)) {
+        await addTodo(roomCode, `Reward: ${reward}`, 'we');
+        setMainTab('list'); // Switch to list to see it
+    }
+  };
+
+  // --- Tracker Handlers ---
+  const handleAddActivity = async (title: string, nature: ActivityNature) => {
+    if (!roomCode) return;
+    await addActivity(roomCode, userId, title, nature);
+  };
+
+  const handleLogOccurrence = async (activityId: string, details: any) => {
+    if (!roomCode) return;
+    await logActivityOccurrence(roomCode, activityId, userId, details);
+  };
+
+  const handleDeleteActivity = async (activity: Activity) => {
+    if (!roomCode) return;
+    await deleteActivity(roomCode, activity);
+  };
+
+
+  // --- Render Logic ---
+
+  const BackgroundDoodles = () => (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      <Cloud className="absolute top-10 left-[-20px] text-white/60 w-32 h-32 animate-pulse" style={{ animationDuration: '4s' }} />
+      <Cloud className="absolute top-40 right-[-40px] text-white/60 w-40 h-40 animate-pulse" style={{ animationDuration: '6s' }} />
+      <Sun className="absolute top-8 right-8 text-[#fde047]/40 w-24 h-24 animate-spin-slow" style={{ animationDuration: '10s' }} />
+      <Flower className="absolute bottom-10 left-10 text-[#fca5a5]/40 w-16 h-16 animate-bounce" style={{ animationDuration: '3s' }} />
+      <Leaf className="absolute bottom-20 right-20 text-[#86efac]/40 w-20 h-20 rotate-45" />
+    </div>
+  );
+
+  const InteractionOverlay = () => {
+    if (!animationType) return null;
+    return (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden">
+            {animationType === 'love' && (
+                <>
+                  {[...Array(20)].map((_, i) => (
+                      <div key={i} className="absolute text-5xl animate-float-up" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 0.5}s` }}>❤️</div>
+                  ))}
+                </>
+            )}
+            {animationType === 'water' && (
+                 <>
+                 {[...Array(30)].map((_, i) => (
+                     <div key={i} className="absolute text-4xl animate-rain" style={{ left: `${Math.random() * 100}%`, top: '-10%', animationDelay: `${Math.random()}s` }}>💧</div>
+                 ))}
+               </>
+            )}
+             {animationType === 'sun' && (
+                 <div className="absolute inset-0 bg-yellow-100/50 flex items-center justify-center animate-sun-pulse">
+                     <Sun size={200} className="text-yellow-500 fill-yellow-300" />
+                 </div>
+            )}
+             {animationType === 'poke' && (
+                <div className="text-9xl animate-bounce">👉</div>
+             )}
+        </div>
+    );
+  };
+
+  // 1. Name Entry Modal
+  if (showNameModal) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <BackgroundDoodles />
+        <div className="bg-white w-full max-w-sm p-8 rounded-[2rem] border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] text-center relative z-10">
+          <Sprout className="w-20 h-20 text-[#86efac] mx-auto mb-4 fill-current animate-bounce stroke-black stroke-2" />
+          <h1 className="text-4xl font-bold mb-2">Hello!</h1>
+          <p className="mb-6 text-gray-600 text-xl">What's your name?</p>
+          <input
+            type="text"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            placeholder="e.g. Honey Bun 🍯"
+            className="w-full p-4 border-4 border-black rounded-2xl mb-6 text-center text-xl outline-none focus:ring-4 ring-[#86efac]/50 shadow-inner bg-gray-50"
+          />
+          <DoodleButton onClick={saveName} className="w-full">Let's Go!</DoodleButton>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Landing Page (No Room)
+  if (!roomCode) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto relative overflow-hidden">
+        <BackgroundDoodles />
+        <div className="mb-10 transform -rotate-2 relative z-10">
+            <h1 className="text-7xl font-bold text-[#86efac] drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] stroke-black tracking-wider" style={{ WebkitTextStroke: '2px black' }}>LoveSync</h1>
+            <p className="text-2xl mt-3 font-bold text-gray-800 bg-white/80 inline-block px-4 py-1 rounded-full border-2 border-black rotate-2">
+                Grow Together 🌱
+            </p>
+        </div>
+
+        <div className="bg-white p-8 rounded-[2.5rem] border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] w-full space-y-8 relative z-10">
+           {error && (
+             <div className="bg-[#fca5a5] border-4 border-black text-black p-3 rounded-xl font-bold animate-shake">{error}</div>
+           )}
+
+           <div>
+             <DoodleButton onClick={handleCreateRoom} disabled={isLoading} className="w-full text-2xl py-5 rounded-2xl">
+               {isLoading ? 'Planting Seeds...' : 'Create New Garden'}
+             </DoodleButton>
+             <p className="text-base text-gray-500 mt-3 font-bold">Start a new space for you two</p>
+           </div>
+
+           <div className="relative flex items-center justify-center py-2">
+             <div className="border-t-4 border-black/10 w-full absolute border-dashed"></div>
+             <div className="bg-white px-4 relative z-10 font-bold text-xl text-gray-400 rotate-12">OR</div>
+           </div>
+
+           <div>
+             <input
+               type="text"
+               value={inputCode}
+               onChange={(e) => setInputCode(e.target.value)}
+               placeholder="ENTER CODE"
+               className="w-full p-5 text-center text-3xl tracking-[0.5em] uppercase border-4 border-black rounded-2xl mb-4 focus:outline-none focus:ring-4 ring-[#fde047]/50 font-mono bg-[#fdf6e3]"
+               maxLength={6}
+             />
+             <DoodleButton onClick={handleJoinRoom} variant="secondary" disabled={isLoading} className="w-full">
+                {isLoading ? 'Finding...' : 'Join Partner'}
+             </DoodleButton>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Dashboard (In Room)
+  if (!roomData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f0fdf4]">
+        <div className="animate-spin text-6xl">🌻</div>
+      </div>
+    );
+  }
+
+  // Derived Data for Mood Log View
+  const logs = roomData.logs || [];
+  const sortedLogs = [...logs].sort((a, b) => b.timestamp - a.timestamp);
+  const myLogs = sortedLogs.filter(l => l.userId === userId);
+  const partnerLogs = sortedLogs.filter(l => l.userId !== userId);
+
+  return (
+    <div className="min-h-screen flex flex-col max-w-md md:max-w-2xl mx-auto relative bg-[#f0fdf4]">
+      <BackgroundDoodles />
+      <InteractionOverlay />
+      
+      {/* Top Bar */}
+      <header className="sticky top-0 z-30 bg-[#f0fdf4]/95 backdrop-blur-sm p-3 border-b-2 border-black/5">
+        <div className="flex justify-between items-center bg-white p-2 rounded-2xl border-2 border-black shadow-sm">
+            <div className="flex items-center gap-2">
+            <div className="bg-[#86efac] p-1.5 rounded-lg border-2 border-black">
+                <Sprout className="text-black w-4 h-4" />
+            </div>
+            <h1 className="font-bold text-lg tracking-tight">LoveSync</h1>
+            </div>
+            
+            <div className="flex items-center gap-2">
+            <button 
+                onClick={copyCode}
+                className="flex items-center gap-1 px-3 py-1 bg-[#fde047] hover:bg-[#facc15] border-2 border-black rounded-lg text-xs font-bold transition-all active:scale-95 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+            >
+                <span className="font-mono">{roomCode}</span>
+                <Copy size={12} />
+            </button>
+            <button onClick={handleLeaveRoom} className="p-1.5 bg-white hover:bg-red-100 border-2 border-black rounded-lg text-black transition-colors active:translate-y-[1px]">
+                <LogOut size={14} />
+            </button>
+            </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto p-4 pb-24 relative z-10">
+        
+        {/* --- TAB 1: MOOD --- */}
+        {mainTab === 'mood' && (
+            <div className="animate-in fade-in zoom-in-95 duration-200">
+                <nav className="flex gap-2 mb-4">
+                    <button 
+                    onClick={() => setMoodSubTab('me')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-4 font-bold text-lg transition-all ${
+                        moodSubTab === 'me' 
+                        ? 'bg-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-y-[-2px]' 
+                        : 'bg-black/5 border-transparent text-gray-500 hover:bg-black/10'
+                    }`}
+                    >
+                    <User size={18} /> Me
+                    </button>
+                    <button 
+                    onClick={() => setMoodSubTab('partner')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-4 font-bold text-lg transition-all ${
+                        moodSubTab === 'partner' 
+                        ? 'bg-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-y-[-2px]' 
+                        : 'bg-black/5 border-transparent text-gray-500 hover:bg-black/10'
+                    }`}
+                    >
+                    <Users size={18} /> Partner
+                    </button>
+                </nav>
+
+                {moodSubTab === 'me' && (
+                    <div className="space-y-4">
+                         {/* Invite Banner for Host */}
+                        {!roomData.guestId && (
+                            <div className="bg-[#fde047] p-4 rounded-2xl border-4 border-black shadow-sm mb-4 flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-bold text-lg leading-tight">Sync with Partner!</h3>
+                                    <p className="text-xs font-bold opacity-70">Send them code: {roomCode}</p>
+                                </div>
+                                <button 
+                                    onClick={copyCode}
+                                    className="bg-white px-3 py-2 rounded-lg border-2 border-black font-bold text-sm hover:scale-105 transition-transform"
+                                >
+                                    Copy Code
+                                </button>
+                            </div>
+                        )}
+
+                        {myLogs.length === 0 ? (
+                            <div className="text-center py-10 opacity-60"><p className="font-bold text-xl">No notes yet!</p></div>
+                        ) : (
+                            myLogs.map(log => (
+                                <MoodCard key={log.id} data={log} isMe={true} />
+                            ))
+                        )}
+                    </div>
+                )}
+
+                {moodSubTab === 'partner' && (
+                    <div className="space-y-4">
+                        {roomData.guestId ? (
+                            <>
+                                <InteractionBar onInteract={handleInteraction} disabled={false} />
+                                {partnerLogs.length === 0 ? (
+                                    <div className="text-center py-10 opacity-60"><p className="font-bold text-xl">Partner hasn't posted yet.</p></div>
+                                ) : (
+                                    partnerLogs.map(log => (
+                                        <MoodCard key={log.id} data={log} isMe={false} />
+                                    ))
+                                )}
+                            </>
+                        ) : (
+                            <div className="bg-white p-8 rounded-3xl border-4 border-black border-dashed text-center flex flex-col items-center gap-4">
+                                <div className="animate-spin text-4xl">⏳</div>
+                                <div className="w-full">
+                                    <p className="font-bold text-gray-500 text-xl mb-2">Waiting for partner...</p>
+                                    <p className="text-sm text-gray-400 mb-2">Send them this code to sync:</p>
+                                    
+                                    <div 
+                                        onClick={copyCode}
+                                        className="bg-gray-100 p-4 rounded-xl border-2 border-black/10 mb-2 cursor-pointer hover:bg-yellow-50 active:scale-95 transition-all"
+                                    >
+                                        <span className="text-4xl font-mono font-bold tracking-[0.2em] text-black">{roomCode}</span>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={copyCode}
+                                    className="flex items-center gap-2 px-6 py-3 bg-[#fde047] border-4 border-black rounded-xl font-bold hover:scale-105 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none"
+                                >
+                                    <Share2 size={20} /> Copy & Send
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        )}
+
+        {/* --- TAB 2: TRACKER (Replaces Habits) --- */}
+        {mainTab === 'track' && (
+            <div className="animate-in slide-in-from-right-4 duration-300">
+                <TrackerTab 
+                    activities={roomData.activities || []}
+                    userId={userId}
+                    roomData={roomData}
+                    onAddActivity={handleAddActivity}
+                    onLogOccurrence={handleLogOccurrence}
+                    onDeleteActivity={handleDeleteActivity}
+                />
+            </div>
+        )}
+
+        {/* --- TAB 3: LIST --- */}
+        {mainTab === 'list' && (
+            <div className="animate-in slide-in-from-right-4 duration-300">
+                <ListTab 
+                    todos={roomData.todos || []}
+                    userId={userId}
+                    onAdd={(text, type) => addTodo(roomCode!, text, type, type === 'me' ? userId : (type === 'you' ? (userId === roomData.hostId ? roomData.guestId : roomData.hostId) : undefined))}
+                    onToggle={(id) => toggleTodo(roomCode!, id, roomData.todos || [])}
+                    onDelete={(todo) => deleteTodo(roomCode!, todo)}
+                />
+            </div>
+        )}
+
+        {/* --- TAB 4: GOAL --- */}
+        {mainTab === 'goal' && (
+            <div className="animate-in slide-in-from-right-4 duration-300">
+                <GoalTab 
+                    goals={roomData.goals || []}
+                    onAdd={(title, target, reward) => addGoal(roomCode!, title, target, reward)}
+                    onIncrement={(id) => incrementGoal(roomCode!, id, roomData.goals || [])}
+                    onDelete={(goal) => deleteGoal(roomCode!, goal)}
+                    onClaim={handleClaimReward}
+                />
+            </div>
+        )}
+
+      </main>
+
+      {/* Bottom Nav Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black p-2 z-40 max-w-md md:max-w-2xl mx-auto rounded-t-3xl shadow-[0px_-4px_0px_0px_rgba(0,0,0,0.1)]">
+         <div className="flex justify-around items-center">
+            <button onClick={() => setMainTab('mood')} className={`p-2 rounded-xl flex flex-col items-center gap-1 transition-all ${mainTab === 'mood' ? 'text-black scale-110' : 'text-gray-400'}`}>
+                <div className={`p-2 rounded-full border-2 ${mainTab === 'mood' ? 'bg-[#fde047] border-black' : 'border-transparent'}`}>
+                    <Smile size={24} strokeWidth={2.5} />
+                </div>
+                <span className="text-[10px] font-bold">Mood</span>
+            </button>
+            
+            <button onClick={() => setMainTab('track')} className={`p-2 rounded-xl flex flex-col items-center gap-1 transition-all ${mainTab === 'track' ? 'text-black scale-110' : 'text-gray-400'}`}>
+                <div className={`p-2 rounded-full border-2 ${mainTab === 'track' ? 'bg-[#86efac] border-black' : 'border-transparent'}`}>
+                    <BarChart3 size={24} strokeWidth={2.5} />
+                </div>
+                <span className="text-[10px] font-bold">Activities</span>
+            </button>
+
+            <button onClick={() => setMainTab('list')} className={`p-2 rounded-xl flex flex-col items-center gap-1 transition-all ${mainTab === 'list' ? 'text-black scale-110' : 'text-gray-400'}`}>
+                <div className={`p-2 rounded-full border-2 ${mainTab === 'list' ? 'bg-[#93c5fd] border-black' : 'border-transparent'}`}>
+                    <ListTodo size={24} strokeWidth={2.5} />
+                </div>
+                <span className="text-[10px] font-bold">List</span>
+            </button>
+
+            <button onClick={() => setMainTab('goal')} className={`p-2 rounded-xl flex flex-col items-center gap-1 transition-all ${mainTab === 'goal' ? 'text-black scale-110' : 'text-gray-400'}`}>
+                <div className={`p-2 rounded-full border-2 ${mainTab === 'goal' ? 'bg-[#fca5a5] border-black' : 'border-transparent'}`}>
+                    <Trophy size={24} strokeWidth={2.5} />
+                </div>
+                <span className="text-[10px] font-bold">Goal</span>
+            </button>
+         </div>
+      </div>
+
+      {/* Floating Action Button for Mood (Only visible on Mood Tab) */}
+      {mainTab === 'mood' && (
+        <div className="fixed bottom-24 right-6 z-30 animate-in zoom-in">
+            <button 
+                onClick={() => setIsEditingMood(true)}
+                className="w-14 h-14 bg-[#fde047] border-4 border-black rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center hover:bg-[#facc15] active:translate-y-1 active:shadow-none transition-all"
+            >
+                <Plus size={28} strokeWidth={3} />
+            </button>
+        </div>
+      )}
+
+      {/* Mood Editor Modal */}
+      {isEditingMood && (
+        <MoodEditor 
+          currentMood={Mood.HAPPY} 
+          currentNote=""
+          onSave={handleAddLog}
+          onCancel={() => setIsEditingMood(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default App;
