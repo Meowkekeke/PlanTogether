@@ -1,17 +1,10 @@
 import React from 'react';
-import { MOOD_COLORS, Mood } from '../types';
+import { MOOD_COLORS, Mood, MoodEntry } from '../types';
 import { Clock } from 'lucide-react';
 import { MoodIcon } from './MoodIcon';
 
-interface MoodData {
-  name: string;
-  mood: Mood;
-  note: string;
-  timestamp: number;
-}
-
 interface MoodCardProps {
-  data: MoodData;
+  data: MoodEntry;
   isMe: boolean;
 }
 
@@ -50,7 +43,7 @@ export const MoodCard: React.FC<MoodCardProps> = ({ data, isMe }) => {
               
               {/* Header: Name + Time */}
               <div className="flex justify-between items-baseline mb-1 border-b border-gray-100 pb-1">
-                  <h3 className="font-bold text-sm text-gray-700 truncate pr-2">{data.name}</h3>
+                  <h3 className="font-bold text-sm text-gray-700 truncate pr-2">{data.userName}</h3>
                   <div className="flex items-center text-[10px] font-bold text-gray-400 shrink-0 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
                     <Clock size={10} className="mr-1" />
                     {getTimeString(data.timestamp)}
