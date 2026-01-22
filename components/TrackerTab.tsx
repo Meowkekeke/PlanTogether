@@ -38,6 +38,9 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
     isMilestone: false,
   });
 
+  // Summary State
+  const [summaryType, setSummaryType] = useState<'monthly' | 'annual'>('monthly');
+
   // --- Helpers ---
   const getStats = (activity: Activity) => {
     // Total lifetime stats
@@ -212,40 +215,80 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
 
   const renderSummary = () => {
      const now = new Date();
+     const currentYear = now.getFullYear();
+     const currentMonth = now.getMonth();
+     
      const monthName = now.toLocaleString('default', { month: 'long' });
-     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-     const daysArray = Array.from({length: daysInMonth}, (_, i) => i + 1);
+     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+     
+     // Labels
+     const monthlyLabels = Array.from({length: daysInMonth}, (_, i) => i + 1);
+     const annualLabels = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
-     // Helper to get daily counts for chart
      const getChartData = (activity: Activity) => {
-        const counts = new Array(daysInMonth).fill(0);
+        const isMonthly = summaryType === 'monthly';
+        const counts = new Array(isMonthly ? daysInMonth : 12).fill(0);
         let totalSessions = 0;
         let totalProjects = 0;
 
         activity.logs.forEach(l => {
             const d = new Date(l.timestamp);
-            if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
-                const dayIndex = d.getDate() - 1;
-                counts[dayIndex]++;
-                totalSessions++;
-                if (l.isMilestone) totalProjects++;
+            // Only process logs from the current year
+            if (d.getFullYear() === currentYear) {
+                if (isMonthly) {
+                    // Monthly View: Filter by current month
+                    if (d.getMonth() === currentMonth) {
+                        counts[d.getDate() - 1]++;
+                        totalSessions++;
+                        if (l.isMilestone) totalProjects++;
+                    }
+                } else {
+                    // Annual View: Aggregate by month
+                    counts[d.getMonth()]++;
+                    totalSessions++;
+                    if (l.isMilestone) totalProjects++;
+                }
             }
         });
         const max = Math.max(...counts, 1); 
         return { counts, max, totalSessions, totalProjects };
      };
+    
+     // Check if ANY activity has data for the current view to show generic empty state
+     const hasAnyData = activities.some(a => {
+         const { totalSessions } = getChartData(a);
+         return totalSessions > 0;
+     });
 
      return (
          <div className="space-y-6 animate-in slide-in-from-bottom-4">
-             <div className="flex items-center gap-2 mb-4">
+             <div className="flex items-center gap-2 mb-2">
                  <button onClick={() => setView('board')} className="p-2 bg-white rounded-full border-2 border-black hover:bg-gray-100"><ArrowLeft size={20}/></button>
-                 <h2 className="text-2xl font-bold">{monthName} Recap</h2>
+                 <h2 className="text-2xl font-bold">{summaryType === 'monthly' ? monthName : currentYear} Recap</h2>
+             </div>
+
+             {/* Toggle */}
+             <div className="flex bg-black/5 p-1 rounded-xl mb-4">
+                <button 
+                    onClick={() => setSummaryType('monthly')} 
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${summaryType === 'monthly' ? 'bg-white shadow-sm text-black' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                    {monthName}
+                </button>
+                <button 
+                    onClick={() => setSummaryType('annual')} 
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${summaryType === 'annual' ? 'bg-white shadow-sm text-black' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                    {currentYear}
+                </button>
              </div>
 
              <div className="space-y-6">
                  {activities.map(act => {
                      const { counts, max, totalSessions, totalProjects } = getChartData(act);
                      if(totalSessions === 0) return null;
+                     
+                     const labels = summaryType === 'monthly' ? monthlyLabels : annualLabels;
 
                      return (
                          <div key={act.id} className="bg-white p-5 rounded-3xl border-4 border-black shadow-sm">
@@ -255,7 +298,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                                      <span className="bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
                                          {totalSessions} Sessions
                                      </span>
-                                     {act.nature === 'ongoing' && (
+                                     {act.nature === 'ongoing' && totalProjects > 0 && (
                                          <span className="bg-[#fef9c3] text-yellow-800 px-3 py-1.5 rounded-lg border border-yellow-200 flex items-center gap-1">
                                              <Trophy size={12} /> {totalProjects} Finished
                                          </span>
@@ -268,17 +311,19 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                                 {/* Max line reference (optional, keeps chart readable) */}
                                 <div className="absolute top-0 left-0 w-full border-t border-dashed border-gray-200 text-[9px] text-gray-300 font-bold">{max > 1 ? max : ''}</div>
                                 
-                                {daysArray.map((day, i) => {
-                                    const count = counts[i];
+                                {counts.map((count, i) => {
                                     const heightPercent = (count / max) * 100;
-                                    const isWeekend = new Date(now.getFullYear(), now.getMonth(), day).getDay() % 6 === 0;
+                                    const label = labels[i];
+                                    const isWeekend = summaryType === 'monthly' 
+                                        ? new Date(currentYear, currentMonth, i + 1).getDay() % 6 === 0
+                                        : false;
                                     
                                     return (
-                                        <div key={day} className="flex-1 flex flex-col justify-end h-full group relative">
+                                        <div key={i} className="flex-1 flex flex-col justify-end h-full group relative">
                                             {/* Tooltip */}
                                             {count > 0 && (
                                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-black text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap font-bold pointer-events-none">
-                                                    Day {day}: {count}
+                                                    {summaryType === 'monthly' ? `Day ${label}` : label}: {count}
                                                 </div>
                                             )}
                                             
@@ -287,15 +332,23 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                                                 className={`w-full min-w-[4px] rounded-t-sm transition-all duration-500 relative ${count > 0 ? 'bg-[#86efac] border-x border-t border-black/20' : 'bg-transparent'}`}
                                                 style={{ height: count > 0 ? `${heightPercent}%` : '4px' }}
                                             >
-                                                {/* Dot for 0 state to guide eye */}
-                                                {count === 0 && (
+                                                {/* Dot for 0 state to guide eye (Monthly) */}
+                                                {count === 0 && summaryType === 'monthly' && (
                                                     <div className={`absolute bottom-0 left-0 w-full h-[2px] ${isWeekend ? 'bg-gray-300' : 'bg-gray-100'}`} />
+                                                )}
+                                                {/* Tick for 0 state (Annual) */}
+                                                 {count === 0 && summaryType === 'annual' && (
+                                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[2px] h-[4px] bg-gray-200" />
                                                 )}
                                             </div>
                                             
                                             {/* Axis Label */}
-                                            {(day === 1 || day % 5 === 0) && (
-                                                <span className="text-[9px] text-gray-400 font-bold absolute -bottom-5 left-1/2 -translate-x-1/2">{day}</span>
+                                            {summaryType === 'monthly' ? (
+                                                ((i + 1) === 1 || (i + 1) % 5 === 0) && (
+                                                    <span className="text-[9px] text-gray-400 font-bold absolute -bottom-5 left-1/2 -translate-x-1/2">{label}</span>
+                                                )
+                                            ) : (
+                                                <span className="text-[9px] text-gray-400 font-bold absolute -bottom-5 left-1/2 -translate-x-1/2">{label}</span>
                                             )}
                                         </div>
                                     )
@@ -305,10 +358,10 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                      )
                  })}
                  
-                 {activities.every(a => a.logs.filter(l => new Date(l.timestamp).getMonth() === now.getMonth()).length === 0) && (
+                 {!hasAnyData && (
                      <div className="text-center py-12 opacity-40">
                         <BarChart3 className="w-16 h-16 mx-auto mb-2" />
-                        <p className="font-bold text-xl">No activity this month yet!</p>
+                        <p className="font-bold text-xl">No activity recorded {summaryType === 'monthly' ? 'this month' : 'this year'}!</p>
                      </div>
                  )}
              </div>
@@ -362,7 +415,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                          {/* Split Body */}
                          <div className="flex h-32">
                             {/* LEFT: ME */}
-                            <div className="flex-1 border-r-2 border-black/10 flex flex-col items-center justify-center p-2 bg-white relative">
+                            <div className="flex-1 border-r-2 border-black/10 flex flex-col items-center justify-center p-2 bg-green-50 relative">
                                 <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Me</span>
                                 
                                 <div className="flex gap-4 mb-2 text-center">
@@ -388,7 +441,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                             </div>
 
                             {/* RIGHT: PARTNER */}
-                            <div className="flex-1 flex flex-col items-center justify-center p-2 bg-gray-50/50 relative">
+                            <div className="flex-1 flex flex-col items-center justify-center p-2 bg-blue-50 relative">
                                 <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 truncate max-w-[80px]">{partnerName}</span>
                                 
                                 <div className="flex gap-4 mb-2 text-center opacity-60">

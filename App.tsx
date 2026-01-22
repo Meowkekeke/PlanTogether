@@ -324,8 +324,21 @@ const App: React.FC = () => {
   // 3. Dashboard (In Room)
   if (!roomData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f0fdf4]">
-        <div className="animate-spin text-6xl">🌻</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#fefce8] gap-4">
+        {/* Doodle Spinner */}
+        <div className="relative">
+           {/* Spinning rays */}
+           <Sun size={80} className="text-black animate-[spin_3s_linear_infinite]" strokeWidth={2} />
+           {/* Center face */}
+           <div className="absolute inset-0 flex items-center justify-center">
+             <div className="w-10 h-10 bg-[#fde047] rounded-full border-2 border-black flex items-center justify-center gap-1">
+                 <div className="w-1 h-1 bg-black rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                 <div className="w-1 h-1 bg-black rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                 <div className="w-1 h-1 bg-black rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+             </div>
+           </div>
+        </div>
+        <div className="font-bold text-gray-400 text-lg animate-pulse">Loading Garden...</div>
       </div>
     );
   }
@@ -337,12 +350,12 @@ const App: React.FC = () => {
   const partnerLogs = sortedLogs.filter(l => l.userId !== userId);
 
   return (
-    <div className="min-h-screen flex flex-col max-w-md md:max-w-2xl mx-auto relative bg-[#f0fdf4]">
+    <div className="min-h-screen flex flex-col max-w-md md:max-w-2xl mx-auto relative bg-[#fefce8]">
       <BackgroundDoodles />
       <InteractionOverlay />
       
       {/* Top Bar */}
-      <header className="sticky top-0 z-30 bg-[#f0fdf4]/95 backdrop-blur-sm p-3 border-b-2 border-black/5">
+      <header className="sticky top-0 z-30 bg-[#fefce8]/95 backdrop-blur-sm p-3 border-b-2 border-black/5">
         <div className="flex justify-between items-center bg-white p-2 rounded-2xl border-2 border-black shadow-sm">
             <div className="flex items-center gap-2">
             <div className="bg-[#86efac] p-1.5 rounded-lg border-2 border-black">
