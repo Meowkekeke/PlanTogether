@@ -250,9 +250,9 @@ const App: React.FC = () => {
   };
 
   // --- Tracker Handlers ---
-  const handleAddActivity = async (title: string, nature: ActivityNature) => {
+  const handleAddActivity = async (title: string, nature: ActivityNature, projectUnit?: string) => {
     if (!roomCode) return;
-    await addActivity(roomCode, userId, title, nature);
+    await addActivity(roomCode, userId, title, nature, projectUnit);
   };
 
   const handleLogOccurrence = async (activityId: string, details: any) => {

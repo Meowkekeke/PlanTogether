@@ -61,6 +61,7 @@ export interface Activity {
   ownerId: string; // Who created/owns this activity
   title: string;
   nature: ActivityNature;
+  projectUnit?: string; // e.g. "Book", "Painting"
   icon?: string; // Optional emoji/icon
   logs: ActivityLog[];
   createdAt: number;

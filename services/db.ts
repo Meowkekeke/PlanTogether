@@ -125,7 +125,7 @@ export const sendInteraction = async (code: string, userId: string, type: Intera
 };
 
 // --- NEW TRACKER (ACTIVITIES) ---
-export const addActivity = async (code: string, userId: string, title: string, nature: ActivityNature) => {
+export const addActivity = async (code: string, userId: string, title: string, nature: ActivityNature, projectUnit?: string) => {
   const roomRef = doc(db, ROOM_COLLECTION, code);
   const activity: Activity = {
     id: getUUID(),
@@ -135,6 +135,7 @@ export const addActivity = async (code: string, userId: string, title: string, n
     logs: [],
     createdAt: Date.now()
   };
+  if (projectUnit) activity.projectUnit = projectUnit;
   await updateDoc(roomRef, { activities: arrayUnion(activity) });
 };
 

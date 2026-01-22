@@ -8,7 +8,7 @@ interface TrackerTabProps {
   userId: string;
   roomData: RoomData; // Needed for checking partner ID
   partnerName: string;
-  onAddActivity: (title: string, nature: ActivityNature) => void;
+  onAddActivity: (title: string, nature: ActivityNature, projectUnit?: string) => void;
   onLogOccurrence: (activityId: string, details: { timestamp: number, durationMinutes?: number, quantity?: number, note?: string, isMilestone?: boolean }) => void;
   onDeleteActivity: (activity: Activity) => void;
 }
@@ -31,6 +31,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
   // Form States
   const [newTitle, setNewTitle] = useState('');
   const [newNature, setNewNature] = useState<ActivityNature>('ongoing');
+  const [newProjectUnit, setNewProjectUnit] = useState('');
   
   // Logging States
   const [logDetails, setLogDetails] = useState({
@@ -63,13 +64,14 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
   const startCreate = () => {
     setNewTitle('');
     setNewNature('ongoing');
+    setNewProjectUnit('');
     setView('create');
   };
 
   const submitCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    onAddActivity(newTitle, newNature);
+    onAddActivity(newTitle, newNature, newProjectUnit);
     setView('board');
   };
 
@@ -135,6 +137,19 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
               </div>
             </button>
             
+            {newNature === 'ongoing' && (
+              <div className="animate-in fade-in slide-in-from-top-2 bg-[#fde047]/10 p-3 rounded-xl border-l-4 border-[#fde047]">
+                 <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">What do you complete?</label>
+                 <input 
+                    className="w-full text-lg font-bold border-b-2 border-black/10 focus:border-black focus:outline-none bg-transparent py-1 placeholder-gray-300"
+                    placeholder="e.g. Book, Painting, Course..."
+                    value={newProjectUnit}
+                    onChange={e => setNewProjectUnit(e.target.value)}
+                  />
+                  <p className="text-[10px] text-gray-400 font-bold mt-1">We'll count how many <span className="text-black underline decoration-wavy decoration-[#fde047]">{newProjectUnit ? newProjectUnit + 's' : 'items'}</span> you finish!</p>
+              </div>
+            )}
+            
             <button
               type="button"
               onClick={() => setNewNature('session')}
@@ -158,7 +173,10 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
     </div>
   );
 
-  const renderLog = () => (
+  const renderLog = () => {
+    const unitName = selectedActivity?.projectUnit || 'project';
+    
+    return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
       <div className="bg-[#fffbeb] w-full max-w-sm max-h-[90vh] flex flex-col rounded-[2rem] border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] relative">
          
@@ -194,8 +212,8 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                                     checked={logDetails.isMilestone}
                                     onChange={e => setLogDetails({...logDetails, isMilestone: e.target.checked})}
                                 />
-                                <div className="font-bold text-sm">I finished the project!</div>
-                                <div className="text-xs text-gray-400 font-bold leading-tight">(e.g. Finished the entire book)</div>
+                                <div className="font-bold text-sm">I finished a {unitName}!</div>
+                                <div className="text-xs text-gray-400 font-bold leading-tight">(Check this to count it as complete)</div>
                             </div>
                         </label>
                     </div>
@@ -211,7 +229,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
          </div>
       </div>
     </div>
-  );
+  )};
 
   const renderSummary = () => {
      const now = new Date();
@@ -289,6 +307,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                      if(totalSessions === 0) return null;
                      
                      const labels = summaryType === 'monthly' ? monthlyLabels : annualLabels;
+                     const unitNamePlural = (act.projectUnit ? act.projectUnit + 's' : 'Projects');
 
                      return (
                          <div key={act.id} className="bg-white p-5 rounded-3xl border-4 border-black shadow-sm">
@@ -300,7 +319,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                                      </span>
                                      {act.nature === 'ongoing' && totalProjects > 0 && (
                                          <span className="bg-[#fef9c3] text-yellow-800 px-3 py-1.5 rounded-lg border border-yellow-200 flex items-center gap-1">
-                                             <Trophy size={12} /> {totalProjects} Finished
+                                             <Trophy size={12} /> {totalProjects} {unitNamePlural} Finished
                                          </span>
                                      )}
                                  </div>
@@ -392,6 +411,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
           ) : (
               activities.map((activity, i) => {
                   const stats = getStats(activity);
+                  const unitNamePlural = (activity.projectUnit ? activity.projectUnit + 's' : 'Projects');
                   
                   return (
                       <div 
@@ -427,7 +447,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                                     {activity.nature === 'ongoing' && (
                                         <div>
                                             <div className="text-2xl font-black text-[#facc15]">{stats.me.projects}</div>
-                                            <div className="text-[9px] font-bold text-gray-400 uppercase">Projects</div>
+                                            <div className="text-[9px] font-bold text-gray-400 uppercase">{unitNamePlural}</div>
                                         </div>
                                     )}
                                 </div>
@@ -452,7 +472,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                                     {activity.nature === 'ongoing' && (
                                         <div>
                                             <div className="text-2xl font-black text-[#facc15]">{stats.partner.projects}</div>
-                                            <div className="text-[9px] font-bold text-gray-400 uppercase">Projects</div>
+                                            <div className="text-[9px] font-bold text-gray-400 uppercase">{unitNamePlural}</div>
                                         </div>
                                     )}
                                 </div>
