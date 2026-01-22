@@ -8,7 +8,7 @@ import {
   deleteRoom,
   getUUID
 } from './services/db';
-import { RoomData, Mood, InteractionType, TodoType, ActivityNature, Activity } from './types';
+import { RoomData, Mood, InteractionType, TodoType, ActivityNature, Activity, Goal } from './types';
 import { MoodCard } from './components/MoodCard';
 import { MoodEditor } from './components/MoodEditor';
 import { DoodleButton } from './components/DoodleButton';
@@ -16,6 +16,7 @@ import { InteractionBar } from './components/InteractionBar';
 import { TrackerTab } from './components/TrackerTab';
 import { ListTab } from './components/ListTab';
 import { GoalTab } from './components/GoalTab';
+import { ConfirmModal } from './components/ConfirmModal';
 
 // Utility for persistent User ID using robust UUID
 const getUserId = () => {
@@ -44,6 +45,17 @@ const App: React.FC = () => {
   const [showNameModal, setShowNameModal] = useState(!localStorage.getItem('lovesync_name'));
   const [showSettings, setShowSettings] = useState(false);
   
+  // Modal State
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmText?: string;
+    singleButton?: boolean;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
   // Animation State
   const [animationType, setAnimationType] = useState<InteractionType | null>(null);
   const lastInteractionRef = useRef<number>(0);
@@ -84,6 +96,32 @@ const App: React.FC = () => {
     const isHost = roomData.hostId === userId;
     const partnerName = isHost ? roomData.guestState?.name : roomData.hostState?.name;
     return partnerName && partnerName !== 'Waiting for partner...' ? partnerName : 'Partner';
+  };
+
+  const showAlert = (title: string, message: string) => {
+      setConfirmConfig({
+          isOpen: true,
+          title,
+          message,
+          onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+          singleButton: true,
+          confirmText: 'Okay!'
+      });
+  };
+
+  const requestConfirm = (title: string, message: React.ReactNode, action: () => void, isDanger = false, confirmText = "Yes") => {
+    setConfirmConfig({
+        isOpen: true,
+        title,
+        message,
+        onConfirm: () => {
+            action();
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        },
+        isDanger,
+        confirmText,
+        singleButton: false
+    });
   };
 
   // Actions
@@ -140,19 +178,31 @@ const App: React.FC = () => {
   };
 
   const handleDeleteRoom = async () => {
-    if (confirm("Are you sure? This will delete the garden and all data forever for BOTH of you.")) {
-        if (roomCode) {
-            await deleteRoom(roomCode);
-            handleDisconnect();
-        }
-    }
+    requestConfirm(
+        "Delete Garden?", 
+        "Are you sure? This will delete the garden and all data forever for BOTH of you.", 
+        async () => {
+            if (roomCode) {
+                await deleteRoom(roomCode);
+                handleDisconnect();
+            }
+        }, 
+        true,
+        "Delete Forever"
+    );
   };
 
   const handleResetApp = () => {
-      if(confirm("This will clear your name and ID from this device. It's like a factory reset for the app.")) {
-          localStorage.clear();
-          window.location.reload();
-      }
+      requestConfirm(
+          "Clear Memory?", 
+          "This will clear your name and ID from this device. It's like a factory reset for the app.", 
+          () => {
+            localStorage.clear();
+            window.location.reload();
+          },
+          true,
+          "Reset Everything"
+      );
   };
 
   const saveName = () => {
@@ -166,7 +216,7 @@ const App: React.FC = () => {
     if (roomCode) {
       try {
         await navigator.clipboard.writeText(roomCode);
-        alert('Code copied! Send it to your partner.');
+        showAlert('Copied!', 'Code copied to clipboard. Send it to your partner! 💌');
       } catch (e) {
         prompt("Copy this code and send it to your partner:", roomCode);
       }
@@ -187,10 +237,16 @@ const App: React.FC = () => {
 
   const handleClaimReward = async (reward: string) => {
     if (!roomCode) return;
-    if(confirm(`Claim "${reward}"? This will add it to your "WE" list.`)) {
-        await addTodo(roomCode, `Reward: ${reward}`, 'we');
-        setMainTab('list'); // Switch to list to see it
-    }
+    requestConfirm(
+        "Claim Reward!", 
+        <span>Claim <b>"{reward}"</b>? This will add it to your "WE" list.</span>,
+        async () => {
+             await addTodo(roomCode, `Reward: ${reward}`, 'we');
+             setMainTab('list');
+        },
+        false,
+        "Claim It!"
+    );
   };
 
   // --- Tracker Handlers ---
@@ -206,7 +262,28 @@ const App: React.FC = () => {
 
   const handleDeleteActivity = async (activity: Activity) => {
     if (!roomCode) return;
-    await deleteActivity(roomCode, activity);
+    requestConfirm(
+        "Delete Activity?",
+        `Remove "${activity.title}" and all its history?`,
+        async () => {
+            await deleteActivity(roomCode, activity);
+        },
+        true,
+        "Remove"
+    );
+  };
+  
+  const handleDeleteGoal = async (goal: Goal) => {
+      if (!roomCode) return;
+       requestConfirm(
+        "Delete Goal?",
+        `Remove "${goal.title}"?`,
+        async () => {
+            await deleteGoal(roomCode, goal);
+        },
+        true,
+        "Remove"
+    );
   };
 
 
@@ -354,6 +431,18 @@ const App: React.FC = () => {
       <BackgroundDoodles />
       <InteractionOverlay />
       
+      {/* Global Confirmation Modal */}
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+        isDanger={confirmConfig.isDanger}
+        confirmText={confirmConfig.confirmText}
+        singleButton={confirmConfig.singleButton}
+      />
+
       {/* Top Bar */}
       <header className="sticky top-0 z-30 bg-[#fefce8]/95 backdrop-blur-sm p-3 border-b-2 border-black/5">
         <div className="flex justify-between items-center bg-white p-2 rounded-2xl border-2 border-black shadow-sm">
@@ -514,7 +603,7 @@ const App: React.FC = () => {
                     goals={roomData.goals || []}
                     onAdd={(title, target, reward) => addGoal(roomCode!, title, target, reward)}
                     onIncrement={(id) => incrementGoal(roomCode!, id, roomData.goals || [])}
-                    onDelete={(goal) => deleteGoal(roomCode!, goal)}
+                    onDelete={handleDeleteGoal}
                     onClaim={handleClaimReward}
                 />
             </div>

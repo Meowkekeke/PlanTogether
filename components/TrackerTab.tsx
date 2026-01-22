@@ -405,7 +405,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                                 <h3 className="font-bold text-lg leading-tight truncate">{activity.title}</h3>
                              </div>
                              <button 
-                                onClick={(e) => { e.stopPropagation(); if(confirm('Remove this card?')) onDeleteActivity(activity); }}
+                                onClick={(e) => { e.stopPropagation(); onDeleteActivity(activity); }}
                                 className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
                              >
                                 <Trash2 size={16} />

@@ -61,7 +61,7 @@ export const GoalTab: React.FC<GoalTabProps> = ({ goals, onAdd, onIncrement, onD
                         Reward: <span className="text-pink-600 bg-pink-50 px-1 rounded">{goal.reward}</span>
                     </div>
                  </div>
-                 <button onClick={() => { if(confirm('Delete?')) onDelete(goal)}} className="text-gray-300 hover:text-red-400">
+                 <button onClick={() => onDelete(goal)} className="text-gray-300 hover:text-red-400">
                     <Trash2 size={18} />
                  </button>
                </div>
