@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, updateDoc, onSnapshot, Unsubscribe, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, Unsubscribe, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
 import { RoomData, Mood, UserState, InteractionType, MoodEntry, Habit, TodoItem, Goal, HabitType, TodoType, Activity, ActivityNature, ActivityLog } from '../types';
 
@@ -86,6 +86,11 @@ export const subscribeToRoom = (code: string, callback: (data: RoomData) => void
       callback(snapshot.data() as RoomData);
     }
   });
+};
+
+export const deleteRoom = async (code: string) => {
+  const roomRef = doc(db, ROOM_COLLECTION, code);
+  await deleteDoc(roomRef);
 };
 
 export const logMood = async (code: string, userId: string, userName: string, mood: Mood, note: string) => {

@@ -7,6 +7,7 @@ interface TrackerTabProps {
   activities: Activity[];
   userId: string;
   roomData: RoomData; // Needed for checking partner ID
+  partnerName: string;
   onAddActivity: (title: string, nature: ActivityNature) => void;
   onLogOccurrence: (activityId: string, details: { timestamp: number, durationMinutes?: number, quantity?: number, note?: string, isMilestone?: boolean }) => void;
   onDeleteActivity: (activity: Activity) => void;
@@ -16,6 +17,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
   activities, 
   userId, 
   roomData,
+  partnerName,
   onAddActivity, 
   onLogOccurrence,
   onDeleteActivity 
@@ -387,7 +389,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
 
                             {/* RIGHT: PARTNER */}
                             <div className="flex-1 flex flex-col items-center justify-center p-2 bg-gray-50/50 relative">
-                                <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Partner</span>
+                                <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 truncate max-w-[80px]">{partnerName}</span>
                                 
                                 <div className="flex gap-4 mb-2 text-center opacity-60">
                                     <div>

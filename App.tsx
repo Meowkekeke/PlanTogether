@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sprout, Copy, LogOut, Heart, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Share2 } from 'lucide-react';
+import { Sprout, Copy, LogOut, Heart, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Share2, Settings, Trash2, RefreshCw, X } from 'lucide-react';
 import { 
   createRoom, joinRoom, subscribeToRoom, logMood, sendInteraction,
   addActivity, logActivityOccurrence, deleteActivity,
   addTodo, toggleTodo, deleteTodo,
   addGoal, incrementGoal, deleteGoal,
+  deleteRoom,
   getUUID
 } from './services/db';
 import { RoomData, Mood, InteractionType, TodoType, ActivityNature, Activity } from './types';
@@ -41,6 +42,7 @@ const App: React.FC = () => {
   const [error, setError] = useState('');
   const [isEditingMood, setIsEditingMood] = useState(false);
   const [showNameModal, setShowNameModal] = useState(!localStorage.getItem('lovesync_name'));
+  const [showSettings, setShowSettings] = useState(false);
   
   // Animation State
   const [animationType, setAnimationType] = useState<InteractionType | null>(null);
@@ -74,6 +76,14 @@ const App: React.FC = () => {
   const triggerAnimation = (type: InteractionType) => {
     setAnimationType(type);
     setTimeout(() => setAnimationType(null), 3000);
+  };
+
+  // Helpers
+  const getPartnerName = () => {
+    if (!roomData) return 'Partner';
+    const isHost = roomData.hostId === userId;
+    const partnerName = isHost ? roomData.guestState?.name : roomData.hostState?.name;
+    return partnerName && partnerName !== 'Waiting for partner...' ? partnerName : 'Partner';
   };
 
   // Actions
@@ -122,12 +132,27 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLeaveRoom = () => {
-    if(confirm("Are you sure you want to disconnect? You'll need the code to join again.")) {
+  const handleDisconnect = () => {
       localStorage.removeItem('lovesync_code');
       setRoomCode(null);
       setRoomData(null);
+      setShowSettings(false);
+  };
+
+  const handleDeleteRoom = async () => {
+    if (confirm("Are you sure? This will delete the garden and all data forever for BOTH of you.")) {
+        if (roomCode) {
+            await deleteRoom(roomCode);
+            handleDisconnect();
+        }
     }
+  };
+
+  const handleResetApp = () => {
+      if(confirm("This will clear your name and ID from this device. It's like a factory reset for the app.")) {
+          localStorage.clear();
+          window.location.reload();
+      }
   };
 
   const saveName = () => {
@@ -334,8 +359,11 @@ const App: React.FC = () => {
                 <span className="font-mono">{roomCode}</span>
                 <Copy size={12} />
             </button>
-            <button onClick={handleLeaveRoom} className="p-1.5 bg-white hover:bg-red-100 border-2 border-black rounded-lg text-black transition-colors active:translate-y-[1px]">
-                <LogOut size={14} />
+            <button 
+                onClick={() => setShowSettings(true)} 
+                className="p-1.5 bg-white hover:bg-gray-100 border-2 border-black rounded-lg text-black transition-colors active:translate-y-[1px]"
+            >
+                <Settings size={14} />
             </button>
             </div>
         </div>
@@ -366,7 +394,7 @@ const App: React.FC = () => {
                         : 'bg-black/5 border-transparent text-gray-500 hover:bg-black/10'
                     }`}
                     >
-                    <Users size={18} /> Partner
+                    <Users size={18} /> {getPartnerName()}
                     </button>
                 </nav>
 
@@ -404,7 +432,7 @@ const App: React.FC = () => {
                             <>
                                 <InteractionBar onInteract={handleInteraction} disabled={false} />
                                 {partnerLogs.length === 0 ? (
-                                    <div className="text-center py-10 opacity-60"><p className="font-bold text-xl">Partner hasn't posted yet.</p></div>
+                                    <div className="text-center py-10 opacity-60"><p className="font-bold text-xl">{getPartnerName()} hasn't posted yet.</p></div>
                                 ) : (
                                     partnerLogs.map(log => (
                                         <MoodCard key={log.id} data={log} isMe={false} />
@@ -445,6 +473,7 @@ const App: React.FC = () => {
                     activities={roomData.activities || []}
                     userId={userId}
                     roomData={roomData}
+                    partnerName={getPartnerName()}
                     onAddActivity={handleAddActivity}
                     onLogOccurrence={handleLogOccurrence}
                     onDeleteActivity={handleDeleteActivity}
@@ -533,6 +562,61 @@ const App: React.FC = () => {
           onSave={handleAddLog}
           onCancel={() => setIsEditingMood(false)}
         />
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white w-full max-w-sm rounded-[2rem] border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                  <div className="p-6 border-b-2 border-black/10 flex justify-between items-center">
+                      <h2 className="text-2xl font-bold">Settings</h2>
+                      <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                  </div>
+                  
+                  <div className="p-6 space-y-4">
+                      
+                      {/* Leave */}
+                      <button 
+                        onClick={handleDisconnect}
+                        className="w-full p-4 rounded-xl border-2 border-black flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+                      >
+                          <div className="bg-white p-2 rounded-lg border border-black"><LogOut size={20} /></div>
+                          <div>
+                              <div className="font-bold">Leave Garden</div>
+                              <div className="text-xs text-gray-500">Disconnect from this device.</div>
+                          </div>
+                      </button>
+
+                      {/* Reset Identity */}
+                      <button 
+                        onClick={handleResetApp}
+                        className="w-full p-4 rounded-xl border-2 border-black flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+                      >
+                          <div className="bg-yellow-100 p-2 rounded-lg border border-black"><RefreshCw size={20} className="text-yellow-700" /></div>
+                          <div>
+                              <div className="font-bold">Clear Memory</div>
+                              <div className="text-xs text-gray-500">Reset your name & ID.</div>
+                          </div>
+                      </button>
+
+                       {/* Delete */}
+                       <button 
+                        onClick={handleDeleteRoom}
+                        className="w-full p-4 rounded-xl border-2 border-red-200 bg-red-50 flex items-center gap-3 hover:bg-red-100 transition-colors text-left"
+                      >
+                          <div className="bg-red-200 p-2 rounded-lg border border-black"><Trash2 size={20} className="text-red-700" /></div>
+                          <div>
+                              <div className="font-bold text-red-800">Delete Garden</div>
+                              <div className="text-xs text-red-600">Destroy all data forever.</div>
+                          </div>
+                      </button>
+                  </div>
+                  
+                  <div className="p-4 bg-gray-50 text-center text-xs font-bold text-gray-400">
+                      LoveSync v1.0 • Built with ❤️
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );
