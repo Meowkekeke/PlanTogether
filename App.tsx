@@ -200,8 +200,17 @@ const App: React.FC = () => {
 
   const handleClearRecords = () => {
       requestConfirm(
-          "WIPE EVERYTHING?", 
-          "WARNING: You will lose ALL memory! This will delete ALL stickies, trackers, lists, and logs for BOTH of you. Are you absolutely sure?", 
+          "WIPE ENTIRE GARDEN?", 
+          <div className="space-y-2 text-left">
+              <p>This will <b>permanently delete</b>:</p>
+              <ul className="list-disc pl-5 text-sm">
+                  <li>All Stickies (Yours & Partner's)</li>
+                  <li>All Lists & Completed Items</li>
+                  <li>All Tracker Activities & History</li>
+                  <li>All Goals & Rewards</li>
+              </ul>
+              <p className="pt-2 font-bold text-red-600">This cannot be undone. Are you absolutely sure?</p>
+          </div>,
           async () => {
             if (roomCode) {
                try {
@@ -214,7 +223,7 @@ const App: React.FC = () => {
             }
           },
           true,
-          "Yes, Delete Everything"
+          "YES, WIPE EVERYTHING"
       );
   };
 

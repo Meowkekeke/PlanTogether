@@ -97,16 +97,40 @@ export const deleteRoom = async (code: string) => {
 // --- CLEAR GARDEN DATA (RESET) ---
 export const clearGardenData = async (code: string) => {
   const roomRef = doc(db, ROOM_COLLECTION, code);
-  // Reset all data arrays to empty, but keep user connections (host/guest states)
-  await updateDoc(roomRef, {
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+  
+  const data = snap.data() as RoomData;
+
+  // Hard Reset: Create a fresh object preserving only connection info
+  // This overwrites any existing arrays, effectively deleting all records.
+  const freshData: RoomData = {
+    hostId: data.hostId,
+    guestId: data.guestId, // Keep guest connection
+    hostState: {
+      name: data.hostState.name,
+      mood: Mood.HAPPY, // Reset mood
+      note: '', // Reset note
+      lastUpdated: Date.now()
+    },
+    guestState: {
+      name: data.guestState?.name || 'Partner',
+      mood: Mood.HAPPY, // Reset mood
+      note: '', // Reset note
+      lastUpdated: Date.now()
+    },
+    createdAt: data.createdAt,
+    // Clear all content collections
+    logs: [],
     stickies: [],
     activities: [],
-    logs: [],
-    todos: [],
-    goals: [],
     habits: [],
-    lastInteraction: null
-  });
+    todos: [],
+    goals: []
+  };
+  
+  // Use setDoc to completely overwrite the document, ensuring no stray fields remain
+  await setDoc(roomRef, freshData);
 };
 
 // --- NEW HOME: STICKIES ---
