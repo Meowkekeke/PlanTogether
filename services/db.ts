@@ -94,30 +94,18 @@ export const deleteRoom = async (code: string) => {
   await deleteDoc(roomRef);
 };
 
-// --- CLEAR USER RECORDS ---
-export const clearUserRecords = async (code: string, userId: string) => {
+// --- CLEAR GARDEN DATA (RESET) ---
+export const clearGardenData = async (code: string) => {
   const roomRef = doc(db, ROOM_COLLECTION, code);
-  const roomSnap = await getDoc(roomRef);
-  if (!roomSnap.exists()) return;
-
-  const data = roomSnap.data() as RoomData;
-
-  // 1. Filter Stickies
-  const updatedStickies = (data.stickies || []).filter(s => s.userId !== userId);
-
-  // 2. Filter Activity Logs (keep the activity, remove user's history)
-  const updatedActivities = (data.activities || []).map(a => ({
-    ...a,
-    logs: a.logs.filter(l => l.userId !== userId)
-  }));
-
-  // 3. Filter Legacy Logs
-  const updatedLogs = (data.logs || []).filter(l => l.userId !== userId);
-
+  // Reset all data arrays to empty, but keep user connections (host/guest states)
   await updateDoc(roomRef, {
-    stickies: updatedStickies,
-    activities: updatedActivities,
-    logs: updatedLogs
+    stickies: [],
+    activities: [],
+    logs: [],
+    todos: [],
+    goals: [],
+    habits: [],
+    lastInteraction: null
   });
 };
 

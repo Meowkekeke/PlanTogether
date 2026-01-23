@@ -6,7 +6,7 @@ import {
   addTodo, completeTodo, deleteTodo, togglePinTodo,
   addGoal, incrementGoal, deleteGoal,
   addSticky, deleteSticky, toggleStickyPin,
-  deleteRoom, clearUserRecords,
+  deleteRoom, clearGardenData,
   getUUID
 } from './services/db';
 import { RoomData, InteractionType, ActivityNature, Activity, Goal } from './types';
@@ -200,21 +200,21 @@ const App: React.FC = () => {
 
   const handleClearRecords = () => {
       requestConfirm(
-          "Clear Your Records?", 
-          "This will delete your stickies, activity logs, and history from the garden. Your name and garden connection will stay.", 
+          "WIPE EVERYTHING?", 
+          "WARNING: You will lose ALL memory! This will delete ALL stickies, trackers, lists, and logs for BOTH of you. Are you absolutely sure?", 
           async () => {
             if (roomCode) {
                try {
-                  await clearUserRecords(roomCode, userId);
-                  showAlert("Cleared", "Your records have been removed.");
+                  await clearGardenData(roomCode);
+                  showAlert("Garden Reset", "The garden has been cleared fresh.");
                } catch (e) {
                   console.error(e);
-                  showAlert("Error", "Could not clear records.");
+                  showAlert("Error", "Could not reset garden.");
                }
             }
           },
           true,
-          "Delete Records"
+          "Yes, Delete Everything"
       );
   };
 
@@ -616,7 +616,7 @@ const App: React.FC = () => {
                           <div className="bg-yellow-100 p-2 rounded-lg border border-black"><Eraser size={20} className="text-yellow-700" /></div>
                           <div>
                               <div className="font-bold">Clear Records</div>
-                              <div className="text-xs text-gray-500">Delete your history/stickies.</div>
+                              <div className="text-xs text-gray-500">Delete all memory (both users).</div>
                           </div>
                       </button>
 
