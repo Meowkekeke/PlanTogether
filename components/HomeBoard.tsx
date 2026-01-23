@@ -295,8 +295,8 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserN
             onSave={(mood, note) => {
                 let finalNote = "";
                 if (note && note.trim()) {
-                    // Combine mood with note using 'as'
-                    finalNote = `I am ${mood} as ${note.trim()}`;
+                    // Combine mood with note using 'as I am'
+                    finalNote = `I am ${mood} as I am ${note.trim()}`;
                 } else {
                     finalNote = getMoodPhrase(mood);
                 }
