@@ -6,6 +6,7 @@ import {
   addTodo, completeTodo, deleteTodo, togglePinTodo,
   addGoal, incrementGoal, deleteGoal,
   addSticky, deleteSticky, toggleStickyPin,
+  addGroceryItem, toggleGroceryItem,
   deleteRoom, clearGardenData,
   getUUID
 } from './services/db';
@@ -509,11 +510,14 @@ const App: React.FC = () => {
 
                 <HomeBoard 
                    stickies={roomData.stickies || []}
+                   groceries={roomData.groceries || []}
                    userId={userId}
                    getUserName={getUserName}
                    onAddSticky={handleAddSticky}
                    onDeleteSticky={handleDeleteSticky}
                    onTogglePin={handleToggleStickyPin}
+                   onAddGrocery={(text) => roomCode && addGroceryItem(roomCode, text)}
+                   onToggleGrocery={(id) => roomCode && toggleGroceryItem(roomCode, id)}
                 />
             </div>
         )}

@@ -327,58 +327,54 @@ export const ListTab: React.FC<ListTabProps> = ({ todos, onAdd, onComplete, onDe
 
       {/* --- RANDOM VIEW --- */}
       {subTab === 'random' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+          <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
               
-              {/* Randomizer Hero */}
-              <div className="bg-white rounded-[2rem] border-4 border-black p-6 text-center shadow-md">
-                   <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-black">
-                       <Dices size={40} className="text-purple-600" />
-                   </div>
-                   <h3 className="text-xl font-bold mb-1">What should we do?</h3>
-                   <p className="text-gray-500 text-sm mb-6 font-bold">{activeRandomItems.length} ideas in the pool</p>
-                   
-                   <DoodleButton 
-                    onClick={spinRandomizer}
-                    disabled={activeRandomItems.length === 0}
-                    className="w-full bg-[#fde047]"
-                   >
-                       Pick One!
-                   </DoodleButton>
-              </div>
+              {/* Pick for me Button */}
+              <DoodleButton 
+                  onClick={spinRandomizer}
+                  disabled={activeRandomItems.length === 0}
+                  className="w-full bg-[#fde047] flex items-center justify-center gap-2 mb-4"
+              >
+                  <Dices size={24} /> Pick for me
+              </DoodleButton>
 
-              {/* Pool List */}
-              <div className="space-y-2 pb-20">
-                  <h4 className="font-bold text-gray-400 text-sm uppercase tracking-widest pl-2">The Pool</h4>
-                  {activeRandomItems.length === 0 ? (
-                       <EmptyState 
-                          type="together" 
-                          message="The pool is empty." 
-                          subMessage="Add fun ideas for later!"
-                       />
-                  ) : (
-                      <div className="grid grid-cols-2 gap-2">
-                          {activeRandomItems.map(item => (
-                              <div key={item.id} className="bg-white p-3 border-2 border-black rounded-xl shadow-sm relative group text-center flex flex-col items-center justify-center min-h-[80px]">
-                                  <p className="font-bold leading-tight">{item.text}</p>
-                                  <button 
-                                    onClick={() => { if(confirm("Remove this idea?")) onDelete(item); }}
-                                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 text-red-400 rounded transition-all"
-                                  >
-                                      <X size={14} />
-                                  </button>
-                              </div>
-                          ))}
+              {activeRandomItems.length === 0 && (
+                   <EmptyState 
+                      type="together" 
+                      message="The pool is empty." 
+                      subMessage="Add fun ideas for later!"
+                   />
+              )}
+
+              {activeRandomItems.map(item => (
+                  <div key={item.id} className="group relative bg-[#fffbeb] p-4 min-h-[100px] flex flex-col justify-between border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-[-1deg] hover:rotate-0 transition-transform">
+                      {/* Tape (Purple for random/fun) */}
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-purple-200/50 backdrop-blur-sm rotate-2 border-l border-r border-white/50 clip-path-tape"></div>
+                      
+                      <p className="font-[Patrick_Hand] text-2xl leading-6 mb-4 pr-6">{item.text}</p>
+                      
+                      <div className="flex justify-end items-end">
+                          <div className="flex gap-2">
+                              {/* Delete */}
+                              <button 
+                                onClick={() => { if(confirm("Remove this idea?")) onDelete(item); }}
+                                className="p-2 text-gray-300 hover:text-red-400 transition-colors"
+                              >
+                                  <Trash2 size={18} />
+                              </button>
+                          </div>
                       </div>
-                  )}
-                  {/* Dashed Add Card for Random */}
-                  <button 
-                    onClick={() => setIsAdding(true)}
-                    className="w-full h-20 rounded-xl border-4 border-black/10 border-dashed flex flex-col items-center justify-center gap-1 text-gray-300 hover:bg-black/5 hover:text-gray-500 transition-colors mt-2"
-                  >
-                      <Plus size={24} />
-                      <span className="font-bold">Add to Pool</span>
-                  </button>
-              </div>
+                  </div>
+              ))}
+
+              {/* Dashed Add Card for Random */}
+              <button 
+                onClick={() => setIsAdding(true)}
+                className="w-full h-24 rounded-2xl border-4 border-black/10 border-dashed flex flex-col items-center justify-center gap-2 text-gray-300 hover:bg-black/5 hover:text-gray-500 transition-colors"
+              >
+                  <Plus size={32} />
+                  <span className="font-bold">Add to Pool</span>
+              </button>
           </div>
       )}
 

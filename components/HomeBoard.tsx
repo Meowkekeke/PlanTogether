@@ -1,21 +1,29 @@
 import React, { useState } from 'react';
-import { Sticky, Mood, Signal, MOOD_COLORS, TodoItem } from '../types';
+import { Sticky, Mood, Signal, GroceryItem } from '../types';
 import { MoodIcon } from './MoodIcon';
 import { DoodleButton } from './DoodleButton';
 import { MoodEditor } from './MoodEditor';
 import { Plus, X, Trash2, Pin, Calendar } from 'lucide-react';
 import { EmptyState } from './EmptyState';
+import { GroceryBasket } from './GroceryBasket';
 
 interface HomeBoardProps {
   stickies: Sticky[];
+  groceries: GroceryItem[];
   userId: string;
   getUserName: (id: string) => string;
   onAddSticky: (type: any, content: any) => void;
   onDeleteSticky: (id: string) => void;
   onTogglePin?: (id: string) => void;
+  onAddGrocery: (text: string) => void;
+  onToggleGrocery: (id: string) => void;
 }
 
-export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserName, onAddSticky, onDeleteSticky, onTogglePin }) => {
+export const HomeBoard: React.FC<HomeBoardProps> = ({ 
+    stickies, groceries, userId, getUserName, 
+    onAddSticky, onDeleteSticky, onTogglePin,
+    onAddGrocery, onToggleGrocery
+}) => {
   const [showMenu, setShowMenu] = useState(false);
   const [activeModal, setActiveModal] = useState<'mood' | 'note' | 'signal' | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -134,7 +142,6 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserN
       return { text: `${diffDays}d left`, color: 'bg-blue-50 text-blue-600' };
   };
 
-  // UPDATED: Default Phrases - Simple & Direct
   const getMoodPhrase = (mood: Mood) => {
       switch(mood) {
           case Mood.HAPPY: return "I am happy";
@@ -302,6 +309,13 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserN
           );
         })}
       </div>
+
+      {/* GROCERY LIST - Bottom Left Fixed */}
+      <GroceryBasket 
+         groceries={groceries || []} 
+         onAdd={onAddGrocery}
+         onToggle={onToggleGrocery}
+      />
 
       {/* Floating Action Button */}
       <div className="fixed bottom-32 right-6 z-50 flex flex-col items-end gap-3">

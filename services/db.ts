@@ -1,6 +1,6 @@
 import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, Unsubscribe, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
-import { RoomData, Mood, UserState, InteractionType, MoodEntry, Habit, TodoItem, Goal, HabitType, TogetherCategory, Activity, ActivityNature, ActivityLog, Sticky, StickyType, Signal } from '../types';
+import { RoomData, Mood, UserState, InteractionType, MoodEntry, Habit, TodoItem, Goal, HabitType, TogetherCategory, Activity, ActivityNature, ActivityLog, Sticky, StickyType, Signal, GroceryItem } from '../types';
 
 const ROOM_COLLECTION = 'couple_rooms';
 
@@ -44,6 +44,7 @@ export const createRoom = async (userId: string, userName: string): Promise<stri
     createdAt: Date.now(),
     logs: [],
     stickies: [], // New Home Board
+    groceries: [], // Grocery List
     activities: [], 
     habits: [],
     todos: [],
@@ -123,6 +124,7 @@ export const clearGardenData = async (code: string) => {
     // Clear all content collections
     logs: [],
     stickies: [],
+    groceries: [],
     activities: [],
     habits: [],
     todos: [],
@@ -132,6 +134,54 @@ export const clearGardenData = async (code: string) => {
   // Use setDoc to completely overwrite the document, ensuring no stray fields remain
   await setDoc(roomRef, freshData);
 };
+
+// --- GROCERY LIST ---
+
+export const addGroceryItem = async (code: string, text: string) => {
+  const roomRef = doc(db, ROOM_COLLECTION, code);
+  const newItem: GroceryItem = {
+    id: getUUID(),
+    text,
+    isChecked: false
+  };
+  await updateDoc(roomRef, { groceries: arrayUnion(newItem) });
+};
+
+export const toggleGroceryItem = async (code: string, itemId: string) => {
+  const roomRef = doc(db, ROOM_COLLECTION, code);
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+  
+  const data = snap.data() as RoomData;
+  const groceries = data.groceries || [];
+  
+  // 12 hour expiration window
+  const EXPIRE_MS = 12 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  // Filter out expired items (Lazy Cleanup) AND update the target item
+  const updatedGroceries = groceries.reduce((acc: GroceryItem[], item) => {
+    // If it was checked > 12h ago, drop it (Silent removal)
+    if (item.isChecked && item.checkedAt && (now - item.checkedAt > EXPIRE_MS)) {
+      return acc; 
+    }
+
+    if (item.id === itemId) {
+      const newCheckedState = !item.isChecked;
+      acc.push({
+        ...item,
+        isChecked: newCheckedState,
+        checkedAt: newCheckedState ? now : undefined
+      });
+    } else {
+      acc.push(item);
+    }
+    return acc;
+  }, []);
+
+  await updateDoc(roomRef, { groceries: updatedGroceries });
+};
+
 
 // --- NEW HOME: STICKIES ---
 export const addSticky = async (code: string, userId: string, type: StickyType, content: { mood?: Mood, text?: string, signal?: Signal }) => {

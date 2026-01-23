@@ -58,6 +58,14 @@ export interface MoodEntry {
   timestamp: number;
 }
 
+// --- Feature: Grocery List ---
+export interface GroceryItem {
+  id: string;
+  text: string;
+  isChecked: boolean;
+  checkedAt?: number; // Timestamp when it was checked (for 12h removal logic)
+}
+
 // --- Feature 2: Tracker (Activities) ---
 export type ActivityNature = 'ongoing' | 'session'; // "Something I keep doing" vs "Session"
 
@@ -161,6 +169,7 @@ export interface RoomData {
   
   // Collections
   stickies: Sticky[]; // The new Home Board
+  groceries: GroceryItem[]; // Shared Grocery List
   activities: Activity[]; // The new tracker
   habits?: Habit[]; // Legacy, can remain empty
   todos: TodoItem[];
