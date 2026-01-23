@@ -6,13 +6,13 @@ interface MoodIconProps {
   className?: string;
 }
 
-export const MoodIcon: React.FC<MoodIconProps> = ({ mood, className = "w-16 h-16" }) => {
+export const MoodIcon: React.FC<MoodIconProps> = ({ mood, className = "w-12 h-12" }) => {
   const commonProps = {
     viewBox: "0 0 100 100",
     className: className,
     fill: "none",
-    stroke: "black",
-    strokeWidth: "3",
+    stroke: "currentColor",
+    strokeWidth: "6",
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const
   };
@@ -22,69 +22,57 @@ export const MoodIcon: React.FC<MoodIconProps> = ({ mood, className = "w-16 h-16
     case Mood.HAPPY:
       return (
         <svg {...commonProps}>
-          {/* Color Blob */}
-          <path d="M15 50 Q10 10 50 15 Q90 10 85 50 Q95 90 50 85 Q10 90 15 50 Z" fill="#fde047" stroke="none" transform="translate(4, 4)" />
-          {/* Outline */}
-          <path d="M15 50 Q10 10 50 15 Q90 10 85 50 Q95 90 50 85 Q10 90 15 50 Z" />
-          {/* Face */}
-          <path d="M35 40 L35 45" strokeWidth="4" />
-          <path d="M65 40 L65 45" strokeWidth="4" />
-          <path d="M30 65 Q50 80 70 65" strokeWidth="3" />
+          {/* Simple Smile */}
+          <circle cx="30" cy="40" r="3" fill="currentColor" stroke="none"/>
+          <circle cx="70" cy="40" r="3" fill="currentColor" stroke="none"/>
+          <path d="M20 60 Q50 85 80 60" />
         </svg>
       );
     case Mood.EXCITED:
       return (
         <svg {...commonProps}>
-           {/* Color Blob */}
-          <path d="M50 10 L60 35 L85 35 L65 55 L75 80 L50 65 L25 80 L35 55 L15 35 L40 35 Z" fill="#fb923c" stroke="none" transform="translate(3, 3)" />
-          {/* Outline */}
-          <path d="M50 10 L60 35 L85 35 L65 55 L75 80 L50 65 L25 80 L35 55 L15 35 L40 35 Z" strokeLinejoin="round" />
-          {/* Face */}
-          <circle cx="40" cy="45" r="2" fill="black" stroke="none" />
-          <circle cx="60" cy="45" r="2" fill="black" stroke="none" />
-          <path d="M40 60 Q50 68 60 60" />
+          {/* Happy Arched Eyes ^ ^ */}
+          <path d="M25 45 Q35 30 45 45" strokeWidth="6" />
+          <path d="M55 45 Q65 30 75 45" strokeWidth="6" />
+          
+          {/* Big Open Laughing Mouth */}
+          <path d="M25 65 Q50 95 75 65 Z" fill="none" strokeWidth="5" />
+          <path d="M25 65 L75 65" strokeWidth="5" />
+          
+          {/* Excitement marks */}
+          <path d="M15 25 L25 35" strokeWidth="4" opacity="0.5" />
+          <path d="M85 25 L75 35" strokeWidth="4" opacity="0.5" />
         </svg>
       );
     case Mood.ROMANTIC:
       return (
         <svg {...commonProps}>
-          {/* Color Blob */}
-           <path d="M50 85 C50 85 10 55 10 30 A20 20 0 0 1 50 30 A20 20 0 0 1 90 30 C90 55 50 85 50 85 Z" fill="#f472b6" stroke="none" transform="translate(4, 2)" />
-           {/* Outline */}
-          <path d="M50 85 C50 85 10 55 10 30 A20 20 0 0 1 50 30 A20 20 0 0 1 90 30 C90 55 50 85 50 85 Z" />
-          {/* Eyes */}
-          <path d="M30 40 L40 40" strokeWidth="3" />
-          <path d="M60 40 L70 40" strokeWidth="3" />
-          {/* Smile */}
-          <path d="M45 60 Q50 62 55 60" />
+          {/* Heart Eyes */}
+          <path d="M20 35 Q25 25 35 35 Q45 25 50 35 L35 55 Z" fill="currentColor" stroke="none" transform="rotate(-10 35 45)" />
+          <path d="M60 35 Q65 25 75 35 Q85 25 90 35 L75 55 Z" fill="currentColor" stroke="none" transform="rotate(10 75 45)" />
+          <path d="M40 70 Q50 75 60 70" />
         </svg>
       );
     case Mood.CHILL:
       return (
         <svg {...commonProps}>
-          {/* Color Blob */}
-          <circle cx="50" cy="50" r="40" fill="#c084fc" stroke="none" transform="translate(3,3)" />
-          {/* Outline */}
-          <path d="M10 50 Q10 10 50 10 Q90 10 90 50 Q90 90 50 90 Q10 90 10 50" />
-          {/* Sunglasses */}
-          <path d="M20 40 Q20 55 35 55 Q50 55 50 40 L50 40 Q50 55 65 55 Q80 55 80 40 L80 35 L20 35 Z" fill="#1e1b4b" stroke="black" />
-          {/* Smile */}
-          <path d="M40 70 Q50 75 60 70" />
+          {/* Sunglasses Line */}
+          <path d="M15 45 L85 45" strokeWidth="8" />
+          <path d="M15 45 Q30 60 45 45" fill="none" />
+          <path d="M55 45 Q70 60 85 45" fill="none" />
+          <path d="M40 75 L60 75" />
         </svg>
       );
     case Mood.GRATEFUL:
       return (
         <svg {...commonProps}>
-          {/* Color Blob */}
-          <circle cx="50" cy="50" r="40" fill="#2dd4bf" stroke="none" transform="translate(3,3)" />
-          {/* Hands */}
-          <path d="M30 80 Q30 50 45 40 Q55 40 70 80" fill="#ccfbf1" stroke="none" />
-          {/* Outline */}
-          <circle cx="50" cy="50" r="40" />
-          <path d="M30 85 Q35 45 50 45 Q65 45 70 85" strokeWidth="2" />
-          {/* Face */}
-          <path d="M35 35 Q40 30 45 35" />
-          <path d="M55 35 Q60 30 65 35" />
+           {/* Closed happy eyes */}
+           <path d="M20 45 Q30 35 40 45" />
+           <path d="M60 45 Q70 35 80 45" />
+           {/* Smile */}
+           <path d="M40 65 Q50 70 60 65" />
+           {/* Hands together */}
+           <path d="M40 85 L50 75 L60 85" strokeWidth="4"/>
         </svg>
       );
 
@@ -92,48 +80,35 @@ export const MoodIcon: React.FC<MoodIconProps> = ({ mood, className = "w-16 h-16
     case Mood.HUNGRY:
       return (
         <svg {...commonProps}>
-           {/* Color Blob */}
-           <path d="M15 50 Q15 15 50 15 Q85 15 85 50 Q85 85 50 85 Q15 85 15 50 Z" fill="#fca5a5" stroke="none" transform="translate(2,2)" />
-           {/* Outline */}
-           <path d="M15 50 Q15 15 50 15 Q85 15 85 50 Q85 85 50 85 Q15 85 15 50 Z" />
-           {/* Bite */}
-           <path d="M85 30 Q70 30 70 45 Q70 60 85 60" fill="#fefce8" stroke="black" />
-           {/* Face */}
-           <path d="M35 45 L35 50" strokeWidth="3" />
-           <path d="M55 45 L55 50" strokeWidth="3" />
-           <path d="M45 65 L45 75" strokeWidth="3" stroke="#ef4444" />
+           <path d="M30 45 L40 45" />
+           <path d="M60 45 L70 45" />
+           {/* Tongue out */}
+           <path d="M30 65 Q50 65 70 65" />
+           <path d="M60 65 Q70 85 50 80" /> 
         </svg>
       );
     case Mood.TIRED:
       return (
         <svg {...commonProps}>
-           {/* Color Blob */}
-           <path d="M10 50 Q15 10 50 15 Q85 10 90 50 Q85 90 50 90 Q15 85 10 50 Z" fill="#94a3b8" stroke="none" transform="translate(3,3)" />
-           {/* Outline */}
-           <path d="M10 50 Q15 10 50 15 Q85 10 90 50 Q85 90 50 90 Q15 85 10 50 Z" />
-           {/* Eyes */}
-           <path d="M30 45 L45 45" />
-           <path d="M55 45 L70 45" />
-           {/* Mouth */}
-           <circle cx="50" cy="65" r="5" fill="black" stroke="none" opacity="0.5"/>
+           {/* Droopy eyes */}
+           <path d="M20 45 L40 50" />
+           <path d="M60 50 L80 45" />
+           {/* Open mouth / yawn */}
+           <circle cx="50" cy="70" r="10" />
            {/* Zzz */}
-           <path d="M75 30 L85 30 L75 20 L85 20" strokeWidth="2" />
+           <path d="M70 30 L80 30 L70 20 L80 20" strokeWidth="3" />
         </svg>
       );
     case Mood.CONFUSED:
       return (
         <svg {...commonProps}>
-           {/* Color Blob */}
-           <path d="M15 50 Q10 10 50 10 Q90 15 85 50 Q90 90 50 85 Q10 90 15 50 Z" fill="#fde68a" stroke="none" transform="translate(3,3)" />
-           {/* Outline */}
-           <path d="M15 50 Q10 10 50 10 Q90 15 85 50 Q90 90 50 85 Q10 90 15 50 Z" />
-           {/* Eyes */}
-           <circle cx="35" cy="45" r="3" fill="black" stroke="none" />
-           <circle cx="65" cy="45" r="2" fill="black" stroke="none" />
-           {/* Mouth */}
-           <path d="M35 65 Q45 60 55 65 Q65 70 75 65" />
-           {/* Swirl */}
-           <path d="M50 20 Q60 10 70 20 Q80 30 70 40" strokeWidth="2" strokeDasharray="4 2" />
+           {/* Mismatched eyes */}
+           <circle cx="35" cy="45" r="4" fill="currentColor" stroke="none" />
+           <circle cx="70" cy="45" r="2" fill="currentColor" stroke="none" />
+           {/* Squiggly mouth */}
+           <path d="M30 70 Q40 60 50 70 T70 70" />
+           {/* Question Mark */}
+           <path d="M85 30 Q95 20 85 10" strokeWidth="3" opacity="0.5"/>
         </svg>
       );
 
@@ -141,63 +116,50 @@ export const MoodIcon: React.FC<MoodIconProps> = ({ mood, className = "w-16 h-16
     case Mood.SAD:
       return (
         <svg {...commonProps}>
-           {/* Color Blob */}
-           <path d="M20 50 Q20 20 50 20 Q80 20 80 50 Q80 80 50 80 Q20 80 20 50" fill="#60a5fa" stroke="none" transform="translate(2,4)" />
-           {/* Outline */}
-           <path d="M20 50 Q20 20 50 20 Q80 20 80 50 Q80 80 50 80 Q20 80 20 50" />
-           {/* Eyes */}
-           <path d="M35 45 Q30 40 25 45" />
-           <path d="M65 45 Q70 40 75 45" />
-           {/* Mouth */}
-           <path d="M35 65 Q50 55 65 65" />
+           {/* Sad eyes */}
+           <path d="M25 45 Q35 50 45 45" />
+           <path d="M55 45 Q65 50 75 45" />
+           {/* Frown */}
+           <path d="M30 75 Q50 55 70 75" />
            {/* Tear */}
-           <path d="M70 55 Q75 65 70 70 Q65 65 70 55" fill="#bfdbfe" strokeWidth="1" />
+           <path d="M75 55 L75 65" strokeWidth="4" stroke="blue" opacity="0.6"/>
         </svg>
       );
     case Mood.ANGRY:
       return (
         <svg {...commonProps}>
-           {/* Color Blob */}
-           <rect x="20" y="20" width="60" height="60" rx="10" fill="#f87171" stroke="none" transform="rotate(5 50 50)" />
-           {/* Outline */}
-           <rect x="20" y="20" width="60" height="60" rx="10" transform="rotate(5 50 50)" />
+           {/* Angry brows */}
+           <path d="M20 35 L45 50" strokeWidth="5" />
+           <path d="M80 35 L55 50" strokeWidth="5" />
            {/* Eyes */}
-           <path d="M30 40 L45 50" strokeWidth="4" />
-           <path d="M70 40 L55 50" strokeWidth="4" />
+           <circle cx="35" cy="60" r="2" fill="currentColor" stroke="none"/>
+           <circle cx="65" cy="60" r="2" fill="currentColor" stroke="none"/>
            {/* Mouth */}
-           <rect x="35" y="65" width="30" height="5" fill="black" stroke="none" />
+           <path d="M35 80 L65 80" strokeWidth="5" />
         </svg>
       );
     case Mood.SICK:
       return (
         <svg {...commonProps}>
-           {/* Color Blob */}
-           <path d="M15 50 Q20 15 50 20 Q85 15 85 50 Q90 85 50 90 Q10 85 15 50 Z" fill="#86efac" stroke="none" transform="translate(3,3)" />
-           {/* Outline */}
-           <path d="M15 50 Q20 15 50 20 Q85 15 85 50 Q90 85 50 90 Q10 85 15 50 Z" />
-           {/* Eyes */}
-           <path d="M30 45 L40 50 L30 55" />
-           <path d="M70 45 L60 50 L70 55" />
-           {/* Mouth */}
-           <path d="M40 70 Q50 65 60 70" />
-           {/* Thermometer */}
-           <path d="M65 70 L80 85" stroke="red" strokeWidth="4" />
+           {/* X eyes */}
+           <path d="M25 40 L45 50 M45 40 L25 50" />
+           <path d="M55 40 L75 50 M75 40 L55 50" />
+           {/* Wavy mouth */}
+           <path d="M30 75 Q40 65 50 75 T70 75" />
         </svg>
       );
     case Mood.STRESSED:
       return (
         <svg {...commonProps}>
-           {/* Scribble Color */}
-           <path d="M20 20 Q40 10 60 20 Q80 10 80 40 Q90 60 70 80 Q50 90 30 80 Q10 60 20 40" fill="#fb7185" stroke="none" transform="translate(2,2)" />
-           {/* Scribble Outline */}
-           <path d="M20 30 Q10 10 40 20 Q60 5 80 20 Q95 40 80 60 Q90 80 60 85 Q40 95 20 80 Q5 60 20 30" />
-           {/* Eyes */}
-           <circle cx="35" cy="45" r="5" fill="white" stroke="black" />
-           <circle cx="65" cy="45" r="5" fill="white" stroke="black" />
-           <circle cx="35" cy="45" r="1" fill="black" stroke="none" />
-           <circle cx="65" cy="45" r="1" fill="black" stroke="none" />
-           {/* Mouth */}
-           <path d="M40 70 L60 70" strokeDasharray="2 2" />
+           {/* Wide eyes */}
+           <circle cx="30" cy="45" r="5" />
+           <circle cx="70" cy="45" r="5" />
+           <circle cx="30" cy="45" r="1" fill="currentColor"/>
+           <circle cx="70" cy="45" r="1" fill="currentColor"/>
+           {/* Scribble mouth */}
+           <path d="M30 70 L70 70" strokeDasharray="5,5" />
+           {/* Sweat */}
+           <path d="M90 40 L85 50" strokeWidth="3" opacity="0.6"/>
         </svg>
       );
       

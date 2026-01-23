@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sprout, Copy, LogOut, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Settings, Trash2, RefreshCw, X } from 'lucide-react';
+import { Sprout, Copy, LogOut, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Settings, Trash2, RefreshCw, X, Eraser } from 'lucide-react';
 import { 
   createRoom, joinRoom, subscribeToRoom, sendInteraction,
   addActivity, logActivityOccurrence, deleteActivity,
-  addTodo, completeTodo, deleteTodo,
+  addTodo, completeTodo, deleteTodo, togglePinTodo,
   addGoal, incrementGoal, deleteGoal,
-  addSticky, deleteSticky,
-  deleteRoom,
+  addSticky, deleteSticky, toggleStickyPin,
+  deleteRoom, clearUserRecords,
   getUUID
 } from './services/db';
 import { RoomData, InteractionType, ActivityNature, Activity, Goal } from './types';
@@ -198,16 +198,23 @@ const App: React.FC = () => {
     );
   };
 
-  const handleResetApp = () => {
+  const handleClearRecords = () => {
       requestConfirm(
-          "Clear Memory?", 
-          "This will clear your name and ID from this device. It's like a factory reset for the app.", 
-          () => {
-            localStorage.clear();
-            window.location.reload();
+          "Clear Your Records?", 
+          "This will delete your stickies, activity logs, and history from the garden. Your name and garden connection will stay.", 
+          async () => {
+            if (roomCode) {
+               try {
+                  await clearUserRecords(roomCode, userId);
+                  showAlert("Cleared", "Your records have been removed.");
+               } catch (e) {
+                  console.error(e);
+                  showAlert("Error", "Could not clear records.");
+               }
+            }
           },
           true,
-          "Reset Everything"
+          "Delete Records"
       );
   };
 
@@ -238,6 +245,11 @@ const App: React.FC = () => {
   const handleDeleteSticky = async (id: string) => {
     if (!roomCode) return;
     await deleteSticky(roomCode, id);
+  };
+  
+  const handleToggleStickyPin = async (id: string) => {
+      if (!roomCode) return;
+      await toggleStickyPin(roomCode, userId, id);
   };
 
   const handleClaimReward = async (reward: string) => {
@@ -492,6 +504,7 @@ const App: React.FC = () => {
                    getUserName={getUserName}
                    onAddSticky={handleAddSticky}
                    onDeleteSticky={handleDeleteSticky}
+                   onTogglePin={handleToggleStickyPin}
                 />
             </div>
         )}
@@ -519,6 +532,7 @@ const App: React.FC = () => {
                     onAdd={(text, category, deadline) => addTodo(roomCode!, text, category, deadline)}
                     onComplete={(id) => completeTodo(roomCode!, id, roomData.todos || [])}
                     onDelete={(todo) => deleteTodo(roomCode!, todo)}
+                    onPin={(id) => togglePinTodo(roomCode!, userId, id)}
                 />
             </div>
         )}
@@ -594,15 +608,15 @@ const App: React.FC = () => {
                           </div>
                       </button>
 
-                      {/* Reset Identity */}
+                      {/* Clear Records */}
                       <button 
-                        onClick={handleResetApp}
+                        onClick={handleClearRecords}
                         className="w-full p-4 rounded-xl border-2 border-black flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
                       >
-                          <div className="bg-yellow-100 p-2 rounded-lg border border-black"><RefreshCw size={20} className="text-yellow-700" /></div>
+                          <div className="bg-yellow-100 p-2 rounded-lg border border-black"><Eraser size={20} className="text-yellow-700" /></div>
                           <div>
-                              <div className="font-bold">Clear Memory</div>
-                              <div className="text-xs text-gray-500">Reset your name & ID.</div>
+                              <div className="font-bold">Clear Records</div>
+                              <div className="text-xs text-gray-500">Delete your history/stickies.</div>
                           </div>
                       </button>
 

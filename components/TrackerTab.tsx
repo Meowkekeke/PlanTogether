@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Activity, ActivityNature, RoomData } from '../types';
 import { DoodleButton } from './DoodleButton';
 import { Plus, BarChart3, X, Trash2, ArrowLeft, User, Trophy, Calendar, CheckCircle2, Repeat } from 'lucide-react';
+import { EmptyState } from './EmptyState';
 
 interface TrackerTabProps {
   activities: Activity[];
@@ -378,10 +379,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                  })}
                  
                  {!hasAnyData && (
-                     <div className="text-center py-12 opacity-40">
-                        <BarChart3 className="w-16 h-16 mx-auto mb-2" />
-                        <p className="font-bold text-xl">No activity recorded {summaryType === 'monthly' ? 'this month' : 'this year'}!</p>
-                     </div>
+                     <EmptyState type="tracker" message="No data for this period" />
                  )}
              </div>
          </div>
@@ -403,11 +401,11 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
        {/* The Board */}
        <div className="space-y-4 pb-24">
           {activities.length === 0 ? (
-              <div className="w-full py-12 text-center opacity-60">
-                  <div className="text-6xl mb-4">🍂</div>
-                  <p className="font-bold text-xl mb-2">Nothing here yet</p>
-                  <p className="text-sm">This space holds the things you do.</p>
-              </div>
+              <EmptyState 
+                type="tracker" 
+                message="Start Tracking!" 
+                subMessage="Log your habits, hobbies, or daily wins."
+              />
           ) : (
               activities.map((activity, i) => {
                   const stats = getStats(activity);

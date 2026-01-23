@@ -1,3 +1,4 @@
+
 export enum Mood {
   // Positive
   HAPPY = 'happy',
@@ -86,6 +87,8 @@ export interface TodoItem {
   // Legacy fields (optional for migration safety)
   type?: string; 
   isCompleted?: boolean;
+  // New: Pinned to Home
+  isPinned?: boolean;
 }
 
 // --- Feature 4: Goals ---
@@ -125,6 +128,11 @@ export interface Sticky {
   
   // Visuals (calculated on creation or client side)
   rotation: number; 
+
+  // Pinned Logic
+  isPinned?: boolean;
+  deadline?: number | null; // If pinned from a Todo with a deadline
+  originId?: string; // ID of the Todo this sticky came from (if any)
 }
 
 export interface RoomData {

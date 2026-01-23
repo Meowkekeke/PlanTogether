@@ -101,9 +101,9 @@ export const MoodEditor: React.FC<MoodEditorProps> = ({ currentMood, currentNote
                 <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full p-3 pr-12 border-2 border-black rounded-xl resize-none focus:outline-none focus:ring-4 ring-[#86efac]/30 text-lg font-[Patrick_Hand] bg-white shadow-inner"
+                className="w-full p-3 pr-12 border-2 border-black rounded-xl resize-none focus:outline-none focus:ring-4 ring-[#86efac]/30 text-lg font-[Patrick_Hand] bg-white shadow-inner placeholder:text-gray-300"
                 rows={2}
-                placeholder="Add a note... ✏️"
+                placeholder="Reason? (e.g. it's sunny)"
                 maxLength={60}
                 />
                 <div className="absolute bottom-2 right-2 text-xs font-bold text-gray-300">

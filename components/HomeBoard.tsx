@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Sticky, Mood, Signal, MOOD_COLORS } from '../types';
+import { Sticky, Mood, Signal, MOOD_COLORS, TodoItem } from '../types';
 import { MoodIcon } from './MoodIcon';
 import { DoodleButton } from './DoodleButton';
 import { MoodEditor } from './MoodEditor';
-import { Plus, X, Heart, Wind, Star, Coffee, Home, AlertCircle } from 'lucide-react';
+import { Plus, X, Heart, Wind, Star, Coffee, Home, AlertCircle, Trash2, Pin, Calendar } from 'lucide-react';
+import { EmptyState } from './EmptyState';
 
 interface HomeBoardProps {
   stickies: Sticky[];
@@ -11,130 +12,247 @@ interface HomeBoardProps {
   getUserName: (id: string) => string;
   onAddSticky: (type: any, content: any) => void;
   onDeleteSticky: (id: string) => void;
+  onTogglePin?: (id: string) => void;
 }
 
-export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserName, onAddSticky, onDeleteSticky }) => {
+export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserName, onAddSticky, onDeleteSticky, onTogglePin }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [activeModal, setActiveModal] = useState<'mood' | 'note' | 'signal' | null>(null);
   const [noteText, setNoteText] = useState('');
 
   // 1. Filter & Sort Stickies
-  // Filter out expired (older than 24h) - double safety check in UI
+  // Filter out older than 4 HOURS unless pinned
   const now = Date.now();
   const validStickies = stickies
-    .filter(s => (now - s.timestamp) < (24 * 60 * 60 * 1000))
-    .sort((a, b) => b.timestamp - a.timestamp); // Newest first
+    .filter(s => s.isPinned || (now - s.timestamp) < (4 * 60 * 60 * 1000))
+    // Sort: Pinned first, then newest
+    .sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return b.timestamp - a.timestamp;
+    }); 
 
-  // 2. Rendering Helpers
+  // 2. Helpers
   const renderSignalIcon = (signal: Signal) => {
     switch (signal) {
-      case Signal.SPACE: return <div className="flex flex-col items-center"><Wind size={48} className="text-blue-600" /><span className="text-sm font-bold mt-1">Need Space</span></div>;
-      case Signal.MISS_YOU: return <div className="flex flex-col items-center"><Heart size={48} className="text-red-500 fill-current" /><span className="text-sm font-bold mt-1">Miss You</span></div>;
-      case Signal.ATTENTION: return <div className="flex flex-col items-center"><Star size={48} className="text-yellow-500 fill-current" /><span className="text-sm font-bold mt-1">Attention</span></div>;
-      case Signal.LOVE: return <div className="flex flex-col items-center"><Heart size={48} className="text-pink-500 animate-pulse fill-current" /><span className="text-sm font-bold mt-1">Love</span></div>;
-      case Signal.COFFEE: return <div className="flex flex-col items-center"><Coffee size={48} className="text-amber-700" /><span className="text-sm font-bold mt-1">Break?</span></div>;
-      case Signal.HOME: return <div className="flex flex-col items-center"><Home size={48} className="text-green-600" /><span className="text-sm font-bold mt-1">Coming Home</span></div>;
+      case Signal.SPACE: return <Wind size={36} className="text-blue-600" />;
+      case Signal.MISS_YOU: return <Heart size={36} className="text-red-500 fill-current" />;
+      case Signal.ATTENTION: return <Star size={36} className="text-yellow-500 fill-current" />;
+      case Signal.LOVE: return <Heart size={36} className="text-pink-500 animate-pulse fill-current" />;
+      case Signal.COFFEE: return <Coffee size={36} className="text-amber-700" />;
+      case Signal.HOME: return <Home size={36} className="text-green-600" />;
       default: return <AlertCircle />;
     }
   };
 
+  // Sticky Color
   const getStickyColor = (ownerId: string) => {
     const isMe = ownerId === userId;
-    // Green theme for me, Blue theme for partner
-    if (isMe) return 'bg-[#86efac] border-[#22c55e]'; // Green-300
-    return 'bg-[#93c5fd] border-[#3b82f6]'; // Blue-300
+    // Lighter Green for me, Lighter Blue for partner
+    if (isMe) return 'bg-[#dcfce7] border-[#86efac]'; // Green-100 bg, Green-300 border
+    return 'bg-[#dbeafe] border-[#93c5fd]'; // Blue-100 bg, Blue-300 border
   };
   
-  const getStickyRotation = (index: number, storedRotation: number) => {
-      return storedRotation || (index % 2 === 0 ? 2 : -2);
+  // Random translation logic helper to make it look scattered
+  const getScatteredStyle = (id: string, index: number) => {
+      // Use ID to make randomness consistent per render (pseudo-random)
+      const seed = id.charCodeAt(0) + id.charCodeAt(id.length - 1);
+      const rotate = (seed % 10) - 5; // -5 to 5 deg
+      const translateX = (seed % 20) - 10; // -10 to 10px
+      const translateY = (seed % 20) - 10;
+      
+      return {
+          transform: `rotate(${rotate}deg) translate(${translateX}px, ${translateY}px)`,
+          zIndex: 10 + index // Newest on top if overlapping
+      };
+  };
+
+  const getCountdown = (ts: number) => {
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      
+      const target = new Date(ts);
+      target.setHours(0,0,0,0);
+      
+      const diffTime = target.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) return { text: `${Math.abs(diffDays)}d late`, color: 'bg-red-100 text-red-600' };
+      if (diffDays === 0) return { text: 'Today!', color: 'bg-orange-100 text-orange-700' };
+      if (diffDays === 1) return { text: 'Tomorrow', color: 'bg-yellow-100 text-yellow-700' };
+      return { text: `${diffDays}d left`, color: 'bg-blue-50 text-blue-600' };
+  };
+
+  // UPDATED: Default Phrases - Simple & Direct
+  const getMoodPhrase = (mood: Mood) => {
+      switch(mood) {
+          case Mood.HAPPY: return "I am happy";
+          case Mood.EXCITED: return "I am excited";
+          case Mood.ROMANTIC: return "I am romantic";
+          case Mood.CHILL: return "I am chill";
+          case Mood.GRATEFUL: return "I am grateful";
+          case Mood.HUNGRY: return "I am hungry";
+          case Mood.TIRED: return "I am tired";
+          case Mood.CONFUSED: return "I am confused";
+          case Mood.SAD: return "I am sad";
+          case Mood.ANGRY: return "I am angry";
+          case Mood.SICK: return "I am sick";
+          case Mood.STRESSED: return "I am stressed";
+          default: return `I am ${mood}`;
+      }
+  };
+
+  const getSignalPhrase = (signal: Signal) => {
+      switch(signal) {
+          case Signal.LOVE: return "I love you!";
+          case Signal.MISS_YOU: return "I miss you so much.";
+          case Signal.SPACE: return "Need a little space.";
+          case Signal.COFFEE: return "Wanna take a break together?";
+          case Signal.ATTENTION: return "Pay attention to me!";
+          case Signal.HOME: return "I'm coming home!";
+          default: return "";
+      }
   };
 
   return (
-    <div className="relative h-full min-h-[70vh] flex flex-col items-center p-4 overflow-hidden">
+    <div className="relative h-full min-h-[70vh] flex flex-col items-center p-2 overflow-hidden">
       
+      {/* Persistence Hint */}
+      <div className="w-full flex justify-center pb-2 opacity-60 pointer-events-none">
+        <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 bg-white/50 px-3 py-1 rounded-full border border-black/5">
+           <span>Stickies disappear in 4h unless pinned</span>
+           <Pin size={10} fill="currentColor" />
+        </div>
+      </div>
+
       {/* Empty State */}
       {validStickies.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-40 pointer-events-none">
-          <div className="w-32 h-32 border-4 border-dashed border-gray-400 rounded-full flex items-center justify-center mb-4">
-            <span className="text-6xl grayscale">🍃</span>
-          </div>
-          <p className="font-bold text-xl text-gray-500 text-center max-w-[200px]">
-            Nothing here right now.<br/>That's okay.
-          </p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-10">
+           <EmptyState 
+             type="home"
+             message="Quiet Garden"
+             subMessage="Tap + to share how you feel!"
+           />
         </div>
       )}
 
-      {/* Sticky Board Canvas */}
-      <div className="w-full max-w-md flex flex-col items-center gap-6 py-10 relative z-10">
+      {/* Sticky Board Canvas - UPDATED: Scattered Flex Layout */}
+      <div className="w-full max-w-lg flex flex-wrap justify-center content-start gap-4 py-6 px-2 relative z-10">
         {validStickies.map((sticky, index) => {
+          const isPinned = sticky.isPinned;
           const isMe = sticky.userId === userId;
-          const isOld = index > 4; // Fade out older items
+          
+          // Visual Styles - Keep original color even if pinned
           const colorClass = getStickyColor(sticky.userId);
-          const rotation = getStickyRotation(index, sticky.rotation);
+          const style = getScatteredStyle(sticky.id, index);
           const senderName = getUserName(sticky.userId);
           
           return (
             <div 
               key={sticky.id}
               className={`
-                relative shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] border-4 border-black transition-all duration-500 flex flex-col
-                w-44 h-44 shrink-0
+                relative shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] border-4 border-black transition-all duration-300 flex flex-col
+                w-[45%] h-32 
                 ${colorClass}
-                ${isOld ? 'opacity-60 scale-90 grayscale-[0.3]' : 'scale-100'}
-                ${index === 0 ? 'z-20 scale-105' : 'z-10'}
+                ${isPinned ? 'ring-2 ring-black/20' : ''}
+                hover:z-50 hover:scale-105 group
               `}
-              style={{
-                transform: `rotate(${rotation}deg)`,
-              }}
-              onContextMenu={(e) => {
-                 e.preventDefault();
-                 if(isMe && confirm("Delete this post-it?")) onDeleteSticky(sticky.id);
-              }}
+              style={style}
             >
-              {/* Tape for decoration */}
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-16 h-6 bg-white/40 backdrop-blur-sm rotate-1 border border-white/50 clip-path-tape"></div>
+              
+              {/* Pin Indicator / Decoration */}
+              {isPinned && (
+                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 drop-shadow-sm">
+                     <Pin size={20} fill="currentColor" className="text-black rotate-[30deg]" />
+                 </div>
+              )}
+              {/* Tape for unpinned */}
+              {!isPinned && (
+                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-10 h-4 bg-white/40 backdrop-blur-sm rotate-1 border border-white/50 clip-path-tape pointer-events-none"></div>
+              )}
+
+              {/* Action Buttons Container */}
+              <div className="absolute top-1 right-1 flex gap-1 z-50">
+                  {/* Pin Toggle */}
+                  {isMe && onTogglePin && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onTogglePin(sticky.id); }}
+                        className={`p-1.5 rounded-full hover:bg-white/50 transition-colors ${isPinned ? 'text-black' : 'text-black/20 hover:text-black'}`}
+                      >
+                          <Pin size={12} fill={isPinned ? "currentColor" : "none"} />
+                      </button>
+                  )}
+                  {/* Delete Button */}
+                  <button 
+                      onClick={(e) => { 
+                          e.stopPropagation(); 
+                          if(confirm(isPinned ? "Unpin and remove this sticky?" : "Tear off this sticky note?")) {
+                              onDeleteSticky(sticky.id);
+                          }
+                      }}
+                      className="p-1.5 text-black/20 hover:text-red-500 transition-colors rounded-full hover:bg-white/50"
+                  >
+                      <Trash2 size={12} />
+                  </button>
+              </div>
+
+              {/* Deadline Badge (if pinned and has deadline) */}
+              {sticky.deadline && (
+                  <div className="absolute top-1 left-1 z-20">
+                      {(() => {
+                          const cd = getCountdown(sticky.deadline);
+                          return (
+                              <div className={`px-1.5 py-0.5 rounded text-[9px] font-bold border border-black/10 flex items-center gap-1 shadow-sm ${cd.color}`}>
+                                  <Calendar size={8} /> {cd.text}
+                              </div>
+                          );
+                      })()}
+                  </div>
+              )}
 
               {/* Content Area - Flex Center */}
               <div className="flex-1 flex flex-col items-center justify-center p-2 text-center overflow-hidden">
                 
                 {sticky.type === 'mood' && sticky.mood && (
-                  <>
-                     <div className="mb-1 drop-shadow-sm">
-                        <MoodIcon mood={sticky.mood} className="w-20 h-20" />
+                  <div className="flex flex-col items-center justify-center h-full w-full">
+                     <div className="mb-1 text-black/80">
+                        <MoodIcon mood={sticky.mood} className="w-10 h-10" />
                      </div>
-                     {sticky.text && (
-                       <p className="font-[Patrick_Hand] text-sm leading-tight font-bold break-words w-full line-clamp-2 px-1">
-                          "{sticky.text}"
-                       </p>
-                     )}
-                  </>
+                     <p className="font-[Patrick_Hand] text-base leading-tight font-bold break-words w-full line-clamp-3 px-1">
+                        "{sticky.text}"
+                     </p>
+                  </div>
                 )}
 
                 {sticky.type === 'note' && (
                   <div className="flex items-center justify-center h-full w-full">
-                     <p className="font-[Patrick_Hand] text-xl leading-6 font-bold break-words w-full line-clamp-4">
+                     <p className={`font-[Patrick_Hand] font-bold break-words w-full line-clamp-3 ${isPinned ? 'text-lg leading-tight' : 'text-xl leading-5'}`}>
                         {sticky.text}
                      </p>
                   </div>
                 )}
 
                 {sticky.type === 'signal' && sticky.signal && (
-                   <div className="flex flex-col items-center justify-center h-full text-black/80">
+                   <div className="flex flex-col items-center justify-center h-full text-black/80 gap-1">
+                      {/* Only showing Icon + Sentence, no label */}
                       {renderSignalIcon(sticky.signal)}
+                      <p className="font-[Patrick_Hand] text-sm leading-4 font-bold px-1 line-clamp-2">
+                        "{sticky.text}"
+                      </p>
                    </div>
                 )}
               </div>
 
               {/* Name Tag */}
-              <div className="absolute -bottom-3 -right-2 bg-white border-2 border-black px-2 py-0.5 rounded-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] rotate-[-2deg] z-20">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-black">{senderName}</span>
+              <div className={`absolute -bottom-2 -right-1 bg-white border-2 border-black px-1.5 py-0 rounded-md shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] rotate-[-2deg] z-20 pointer-events-none`}>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-black">{senderName}</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Floating Action Button - Positioned higher (bottom-32) to avoid nav overlap */}
+      {/* Floating Action Button */}
       <div className="fixed bottom-32 right-6 z-50 flex flex-col items-end gap-3">
          {showMenu && (
            <div className="flex flex-col gap-3 animate-in slide-in-from-bottom-5 fade-in duration-200 mb-2">
@@ -161,7 +279,7 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserN
          
          <button 
             onClick={() => setShowMenu(!showMenu)}
-            className={`w-16 h-16 rounded-full border-4 border-black flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none ${showMenu ? 'bg-black text-white rotate-45' : 'bg-[#86efac] text-black hover:bg-[#4ade80]'}`}
+            className={`w-16 h-16 rounded-full border-4 border-black flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-y-1 active:shadow-none ${showMenu ? 'bg-black text-white rotate-45' : 'bg-[#fde047] text-black hover:bg-[#facc15]'}`}
          >
             <Plus size={32} strokeWidth={3} />
          </button>
@@ -169,13 +287,20 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserN
 
       {/* MODALS */}
       
-      {/* 1. Mood Picker (Reusing MoodEditor logic but simplified saving) */}
+      {/* 1. Mood Picker */}
       {activeModal === 'mood' && (
         <MoodEditor 
             currentMood={Mood.HAPPY} 
             currentNote=""
             onSave={(mood, note) => {
-                onAddSticky('mood', { mood, text: note });
+                let finalNote = "";
+                if (note && note.trim()) {
+                    // Combine mood with note using 'as'
+                    finalNote = `I am ${mood} as ${note.trim()}`;
+                } else {
+                    finalNote = getMoodPhrase(mood);
+                }
+                onAddSticky('mood', { mood, text: finalNote });
                 setActiveModal(null);
             }}
             onCancel={() => setActiveModal(null)}
@@ -236,7 +361,8 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserN
                         <button
                             key={sig.s}
                             onClick={() => {
-                                onAddSticky('signal', { signal: sig.s });
+                                const phrase = getSignalPhrase(sig.s);
+                                onAddSticky('signal', { signal: sig.s, text: phrase });
                                 setActiveModal(null);
                             }}
                             className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 border-black hover:scale-105 transition-transform ${sig.color}`}

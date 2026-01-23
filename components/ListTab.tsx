@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { TodoItem, TogetherCategory } from '../types';
 import { DoodleButton } from './DoodleButton';
-import { Plus, Check, Trash2, FolderOpen, Folder, Calendar, Dices, X, RotateCcw, ArrowRight } from 'lucide-react';
+import { Plus, Check, Trash2, FolderOpen, Folder, Calendar, Dices, X, RotateCcw, ArrowRight, Pin } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
+import { EmptyState } from './EmptyState';
 
 interface ListTabProps {
   todos: TodoItem[];
   onAdd: (text: string, category: TogetherCategory, deadline?: number | null) => void;
   onComplete: (id: string) => void;
   onDelete: (todo: TodoItem) => void;
+  onPin: (id: string) => void;
 }
 
-export const ListTab: React.FC<ListTabProps> = ({ todos, onAdd, onComplete, onDelete }) => {
+export const ListTab: React.FC<ListTabProps> = ({ todos, onAdd, onComplete, onDelete, onPin }) => {
   // Navigation: 'list' (Needs to happen), 'random' (Could happen), 'folder' (Archive)
   const [subTab, setSubTab] = useState<'list' | 'random' | 'folder'>('list');
   
@@ -35,6 +37,10 @@ export const ListTab: React.FC<ListTabProps> = ({ todos, onAdd, onComplete, onDe
 
   // Sort Active List: Items with deadlines come first (ascending), then items without (by creation)
   const sortedListItems = [...activeListItems].sort((a, b) => {
+    // Pinned always on top
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+
     if (a.deadline && b.deadline) return a.deadline - b.deadline;
     if (a.deadline) return -1;
     if (b.deadline) return 1;
@@ -237,16 +243,26 @@ export const ListTab: React.FC<ListTabProps> = ({ todos, onAdd, onComplete, onDe
       {subTab === 'list' && (
           <div className="space-y-3 animate-in fade-in slide-in-from-left-4">
               {sortedListItems.length === 0 && (
-                  <div className="text-center py-12 opacity-40">
-                      <div className="text-6xl mb-2">📝</div>
-                      <p className="font-bold">Nothing needs to happen right now.</p>
-                  </div>
+                  <EmptyState 
+                    type="together" 
+                    message="Let's plan something!" 
+                    subMessage="Add items that need to happen."
+                  />
               )}
               {sortedListItems.map(item => (
                   <div key={item.id} className="group relative bg-[#fffbeb] p-4 min-h-[100px] flex flex-col justify-between border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-[-1deg] hover:rotate-0 transition-transform">
                       {/* Tape */}
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-yellow-200/50 backdrop-blur-sm rotate-2 border-l border-r border-white/50 clip-path-tape"></div>
+                      {!item.isPinned && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-yellow-200/50 backdrop-blur-sm rotate-2 border-l border-r border-white/50 clip-path-tape"></div>
+                      )}
                       
+                      {/* Pinned Icon */}
+                      {item.isPinned && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-500 text-white p-1 rounded-full border-2 border-black z-20 shadow-sm animate-in zoom-in">
+                              <Pin size={16} fill="currentColor" />
+                          </div>
+                      )}
+
                       <p className="font-[Patrick_Hand] text-2xl leading-6 mb-4 pr-6">{item.text}</p>
                       
                       <div className="flex justify-between items-end">
@@ -270,6 +286,15 @@ export const ListTab: React.FC<ListTabProps> = ({ todos, onAdd, onComplete, onDe
                           )}
 
                           <div className="flex gap-2">
+                              {/* Pin Toggle */}
+                              <button 
+                                onClick={() => onPin(item.id)}
+                                className={`p-2 transition-colors rounded-full ${item.isPinned ? 'text-red-500 bg-red-50' : 'text-gray-300 hover:text-red-400'}`}
+                                title={item.isPinned ? "Unpin from Home" : "Pin to Home"}
+                              >
+                                  <Pin size={18} fill={item.isPinned ? "currentColor" : "none"} />
+                              </button>
+
                               {/* Delete */}
                               <button 
                                 onClick={() => { if(confirm("Delete this?")) onDelete(item); }}
@@ -325,7 +350,11 @@ export const ListTab: React.FC<ListTabProps> = ({ todos, onAdd, onComplete, onDe
               <div className="space-y-2 pb-20">
                   <h4 className="font-bold text-gray-400 text-sm uppercase tracking-widest pl-2">The Pool</h4>
                   {activeRandomItems.length === 0 ? (
-                      <p className="text-center text-gray-400 py-4 italic">The pool is empty. Add fun ideas!</p>
+                       <EmptyState 
+                          type="together" 
+                          message="The pool is empty." 
+                          subMessage="Add fun ideas for later!"
+                       />
                   ) : (
                       <div className="grid grid-cols-2 gap-2">
                           {activeRandomItems.map(item => (

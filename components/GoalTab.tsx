@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Goal } from '../types';
 import { DoodleButton } from './DoodleButton';
-import { Trophy, Gift, Plus, Trash2, ArrowUpCircle } from 'lucide-react';
+import { Trophy, Gift, Plus, Trash2, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
+import { EmptyState } from './EmptyState';
 
 interface GoalTabProps {
   goals: Goal[];
@@ -13,9 +14,13 @@ interface GoalTabProps {
 
 export const GoalTab: React.FC<GoalTabProps> = ({ goals, onAdd, onIncrement, onDelete, onClaim }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [title, setTitle] = useState('');
   const [target, setTarget] = useState(10);
   const [reward, setReward] = useState('');
+
+  const activeGoals = goals.filter(g => !g.isCompleted);
+  const completedGoals = goals.filter(g => g.isCompleted);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,29 +35,27 @@ export const GoalTab: React.FC<GoalTabProps> = ({ goals, onAdd, onIncrement, onD
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-[#fffbeb] p-6 rounded-3xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center relative overflow-hidden">
-        <Trophy className="mx-auto w-12 h-12 text-[#facc15] mb-2" />
-        <h2 className="text-2xl font-bold">Rewards Quest</h2>
-        <p className="text-gray-500 font-bold">Do stuff together, get treats!</p>
-        <div className="absolute top-2 right-2 opacity-10 rotate-12">
-            <Gift size={100} />
-        </div>
+      {/* Small Header */}
+      <div className="flex items-center gap-2 px-2">
+         <Trophy className="text-[#facc15]" size={24} />
+         <h2 className="text-xl font-bold">Our Quests</h2>
       </div>
 
-      {/* Goal Cards */}
+      {/* Active Goal Cards */}
       <div className="grid gap-4">
-        {goals.map(goal => {
+        {activeGoals.length === 0 && !isAdding && (
+            <EmptyState 
+              type="goal" 
+              message="No active quests" 
+              subMessage="Set a goal and a reward!" 
+            />
+        )}
+
+        {activeGoals.map(goal => {
           const percent = Math.min(100, Math.round((goal.currentCount / goal.targetCount) * 100));
           
           return (
-            <div key={goal.id} className={`relative bg-white rounded-2xl border-4 border-black p-4 shadow-md transition-all ${goal.isCompleted ? 'bg-yellow-50' : ''}`}>
-               {goal.isCompleted && (
-                 <div className="absolute -top-3 -right-3 bg-[#fde047] border-4 border-black px-3 py-1 rotate-12 z-10 font-bold shadow-sm">
-                    DONE!
-                 </div>
-               )}
-
+            <div key={goal.id} className="relative bg-white rounded-2xl border-4 border-black p-4 shadow-md transition-all">
                <div className="flex justify-between items-start mb-4">
                  <div>
                     <h3 className="font-bold text-xl">{goal.title}</h3>
@@ -80,18 +83,12 @@ export const GoalTab: React.FC<GoalTabProps> = ({ goals, onAdd, onIncrement, onD
                <div className="flex justify-between items-center">
                   <span className="font-bold text-2xl">{goal.currentCount} <span className="text-base text-gray-400">/ {goal.targetCount}</span></span>
                   
-                  {goal.isCompleted ? (
-                      <DoodleButton onClick={() => onClaim(goal.reward)} className="!py-2 !text-sm !px-4 bg-[#fde047]">
-                         Claim Reward
-                      </DoodleButton>
-                  ) : (
-                      <button 
-                        onClick={() => onIncrement(goal.id)}
-                        className="w-12 h-12 rounded-xl bg-black text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]"
-                      >
-                         <Plus strokeWidth={4} />
-                      </button>
-                  )}
+                  <button 
+                    onClick={() => onIncrement(goal.id)}
+                    className="w-12 h-12 rounded-xl bg-black text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]"
+                  >
+                        <Plus strokeWidth={4} />
+                  </button>
                </div>
             </div>
           );
@@ -135,13 +132,44 @@ export const GoalTab: React.FC<GoalTabProps> = ({ goals, onAdd, onIncrement, onD
              </div>
          </form>
       ) : (
-         <button 
+        <button 
             onClick={() => setIsAdding(true)}
-            className="w-full py-4 border-4 border-black border-dashed rounded-2xl flex items-center justify-center gap-2 text-gray-500 hover:bg-black/5 transition-colors"
+            className="w-full h-24 rounded-2xl border-4 border-black/10 border-dashed flex flex-col items-center justify-center gap-2 text-gray-300 hover:bg-black/5 hover:text-gray-500 transition-colors"
         >
-            <Plus size={24} />
-            <span className="font-bold text-xl">New Goal</span>
+            <Plus size={32} />
+            <span className="font-bold">New Goal</span>
         </button>
+      )}
+
+      {/* Completed Archive */}
+      {completedGoals.length > 0 && (
+          <div className="pt-8">
+             <button 
+                onClick={() => setShowArchived(!showArchived)}
+                className="flex items-center gap-2 font-bold text-gray-500 mb-4 hover:text-black transition-colors"
+             >
+                 {showArchived ? <ChevronDown size={20}/> : <ChevronRight size={20}/>}
+                 Claimed Rewards ({completedGoals.length})
+             </button>
+
+             {showArchived && (
+                 <div className="space-y-4 animate-in slide-in-from-top-2">
+                     {completedGoals.map(goal => (
+                         <div key={goal.id} className="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200 opacity-80 flex justify-between items-center">
+                             <div>
+                                <h4 className="font-bold text-gray-600 line-through">{goal.title}</h4>
+                                <div className="text-xs font-bold text-pink-500">Reward: {goal.reward}</div>
+                             </div>
+                             
+                             {/* If it's done but logic allows claiming, we assume it's moved to Together list, but here we can show Claim again if needed or just show status */}
+                             <DoodleButton onClick={() => onClaim(goal.reward)} className="!py-1 !px-3 !text-xs !bg-[#fde047]">
+                                Claim Again
+                             </DoodleButton>
+                         </div>
+                     ))}
+                 </div>
+             )}
+          </div>
       )}
     </div>
   );
