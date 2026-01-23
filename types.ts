@@ -73,15 +73,19 @@ export interface HabitLog { userId: string; timestamp: number; val: number; }
 export interface Habit { id: string; title: string; type: HabitType; logs: HabitLog[]; createdAt: number; }
 
 
-// --- Feature 3: List ---
-export type TodoType = 'me' | 'you' | 'we';
+// --- Feature 3: Together (List & Random) ---
+export type TogetherCategory = 'list' | 'random';
+
 export interface TodoItem {
   id: string;
   text: string;
-  type: TodoType;
-  assignedTo?: string; // userId for 'me'/'you' logic
-  isCompleted: boolean;
+  category: TogetherCategory;
+  deadline?: number | null; // Timestamp for "List" items. Null means "No deadline".
+  completedAt?: number; // If present, it's in the Folder
   createdAt: number;
+  // Legacy fields (optional for migration safety)
+  type?: string; 
+  isCompleted?: boolean;
 }
 
 // --- Feature 4: Goals ---
@@ -95,6 +99,34 @@ export interface Goal {
   createdAt: number;
 }
 
+// --- NEW HOME: Sticky Notes ---
+export type StickyType = 'mood' | 'note' | 'signal';
+
+export enum Signal {
+  SPACE = 'space', // "Need space"
+  MISS_YOU = 'miss_you', // "Miss you"
+  ATTENTION = 'attention', // "Look at me / Attention"
+  LOVE = 'love', // "Sending love"
+  COFFEE = 'coffee', // "Coffee/Break?"
+  HOME = 'home' // "Coming home"
+}
+
+export interface Sticky {
+  id: string;
+  userId: string;
+  type: StickyType;
+  
+  // Content varies by type
+  mood?: Mood; 
+  text?: string; // For Notes or Mood Caption
+  signal?: Signal;
+
+  timestamp: number;
+  
+  // Visuals (calculated on creation or client side)
+  rotation: number; 
+}
+
 export interface RoomData {
   hostId: string;
   guestId?: string; 
@@ -105,6 +137,7 @@ export interface RoomData {
   logs: MoodEntry[];
   
   // Collections
+  stickies: Sticky[]; // The new Home Board
   activities: Activity[]; // The new tracker
   habits?: Habit[]; // Legacy, can remain empty
   todos: TodoItem[];

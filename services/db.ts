@@ -1,6 +1,6 @@
 import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, Unsubscribe, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
-import { RoomData, Mood, UserState, InteractionType, MoodEntry, Habit, TodoItem, Goal, HabitType, TodoType, Activity, ActivityNature, ActivityLog } from '../types';
+import { RoomData, Mood, UserState, InteractionType, MoodEntry, Habit, TodoItem, Goal, HabitType, TogetherCategory, Activity, ActivityNature, ActivityLog, Sticky, StickyType, Signal } from '../types';
 
 const ROOM_COLLECTION = 'couple_rooms';
 
@@ -43,7 +43,8 @@ export const createRoom = async (userId: string, userName: string): Promise<stri
     guestState: { ...initialUserState, name: 'Waiting for partner...' },
     createdAt: Date.now(),
     logs: [],
-    activities: [], // New tracker
+    stickies: [], // New Home Board
+    activities: [], 
     habits: [],
     todos: [],
     goals: []
@@ -93,28 +94,68 @@ export const deleteRoom = async (code: string) => {
   await deleteDoc(roomRef);
 };
 
-export const logMood = async (code: string, userId: string, userName: string, mood: Mood, note: string) => {
+// --- NEW HOME: STICKIES ---
+export const addSticky = async (code: string, userId: string, type: StickyType, content: { mood?: Mood, text?: string, signal?: Signal }) => {
   const roomRef = doc(db, ROOM_COLLECTION, code);
-  const newEntry: MoodEntry = {
-    id: getUUID(),
-    userId,
-    userName,
-    mood,
-    note: note || '', // Ensure no undefined
-    timestamp: Date.now()
-  };
   const roomSnap = await getDoc(roomRef);
   if (!roomSnap.exists()) return;
-  const data = roomSnap.data() as RoomData;
-  const isHost = data.hostId === userId;
-  const fieldPrefix = isHost ? 'hostState' : 'guestState';
 
-  await updateDoc(roomRef, {
-    logs: arrayUnion(newEntry),
-    [`${fieldPrefix}.mood`]: mood,
-    [`${fieldPrefix}.note`]: note || '',
-    [`${fieldPrefix}.lastUpdated`]: Date.now()
+  const data = roomSnap.data() as RoomData;
+  let currentStickies = data.stickies || [];
+  const now = Date.now();
+
+  // 1. Cleanup Expired (Older than 24h)
+  const oneDayAgo = now - (24 * 60 * 60 * 1000);
+  currentStickies = currentStickies.filter(s => s.timestamp > oneDayAgo);
+
+  // 2. Logic based on type
+  if (type === 'mood') {
+    // Replace user's existing mood sticky
+    currentStickies = currentStickies.filter(s => !(s.userId === userId && s.type === 'mood'));
+  } else if (type === 'note') {
+    // Keep max 2 notes per user. If adding a 3rd, remove oldest.
+    const myNotes = currentStickies.filter(s => s.userId === userId && s.type === 'note').sort((a, b) => a.timestamp - b.timestamp);
+    if (myNotes.length >= 2) {
+      const idToRemove = myNotes[0].id; // Oldest
+      currentStickies = currentStickies.filter(s => s.id !== idToRemove);
+    }
+  } else if (type === 'signal') {
+    // One active signal per TYPE per person
+    if (content.signal) {
+      currentStickies = currentStickies.filter(s => !(s.userId === userId && s.type === 'signal' && s.signal === content.signal));
+    }
+  }
+
+  // 3. Create new Sticky
+  const newSticky: Sticky = {
+    id: getUUID(),
+    userId,
+    type,
+    timestamp: now,
+    rotation: Math.floor(Math.random() * 10) - 5, // -5 to +5 degrees
+    ...content
+  };
+
+  currentStickies.push(newSticky);
+
+  await updateDoc(roomRef, { stickies: currentStickies });
+};
+
+export const deleteSticky = async (code: string, stickyId: string) => {
+  const roomRef = doc(db, ROOM_COLLECTION, code);
+  const roomSnap = await getDoc(roomRef);
+  if (!roomSnap.exists()) return;
+  const currentStickies = (roomSnap.data() as RoomData).stickies || [];
+  
+  await updateDoc(roomRef, { 
+    stickies: currentStickies.filter(s => s.id !== stickyId) 
   });
+};
+
+// Deprecated (Kept to not break existing calls immediately, but effectively unused by new UI)
+export const logMood = async (code: string, userId: string, userName: string, mood: Mood, note: string) => {
+    // Map legacy logMood calls to new Sticky Mood system
+    await addSticky(code, userId, 'mood', { mood, text: note });
 };
 
 export const sendInteraction = async (code: string, userId: string, type: InteractionType) => {
@@ -176,61 +217,29 @@ export const deleteActivity = async (code: string, activity: Activity) => {
   await updateDoc(roomRef, { activities: arrayRemove(activity) });
 };
 
-// --- LEGACY HABITS (Optional support) ---
-export const addHabit = async (code: string, title: string, type: HabitType) => {
-  const roomRef = doc(db, ROOM_COLLECTION, code);
-  const habit: Habit = {
-    id: getUUID(),
-    title,
-    type,
-    logs: [],
-    createdAt: Date.now()
-  };
-  await updateDoc(roomRef, { habits: arrayUnion(habit) });
-};
-
-export const checkInHabit = async (code: string, habitId: string, userId: string, currentHabits: Habit[]) => {
-  const roomRef = doc(db, ROOM_COLLECTION, code);
-  const updatedHabits = currentHabits.map(h => {
-    if (h.id === habitId) {
-      return { 
-        ...h, 
-        logs: [...h.logs, { userId, timestamp: Date.now(), val: 1 }] 
-      };
-    }
-    return h;
-  });
-  await updateDoc(roomRef, { habits: updatedHabits });
-};
-
-export const deleteHabit = async (code: string, habit: Habit) => {
-  const roomRef = doc(db, ROOM_COLLECTION, code);
-  await updateDoc(roomRef, { habits: arrayRemove(habit) });
-};
-
-// --- LISTS ---
-export const addTodo = async (code: string, text: string, type: TodoType, assignedTo?: string) => {
+// --- TOGETHER (List/Random) ---
+export const addTodo = async (code: string, text: string, category: TogetherCategory, deadline?: number | null) => {
   const roomRef = doc(db, ROOM_COLLECTION, code);
   
   const todo: TodoItem = {
     id: getUUID(),
     text,
-    type,
-    isCompleted: false,
+    category,
     createdAt: Date.now()
   };
 
-  if (assignedTo) {
-    todo.assignedTo = assignedTo;
+  if (category === 'list') {
+      todo.deadline = deadline || null;
   }
 
   await updateDoc(roomRef, { todos: arrayUnion(todo) });
 };
 
-export const toggleTodo = async (code: string, todoId: string, currentTodos: TodoItem[]) => {
+// Replaces toggleTodo - moves item to completed folder
+export const completeTodo = async (code: string, todoId: string, currentTodos: TodoItem[]) => {
   const roomRef = doc(db, ROOM_COLLECTION, code);
   const updatedTodos = currentTodos.map(t => 
-    t.id === todoId ? { ...t, isCompleted: !t.isCompleted } : t
+    t.id === todoId ? { ...t, completedAt: Date.now() } : t
   );
   await updateDoc(roomRef, { todos: updatedTodos });
 };

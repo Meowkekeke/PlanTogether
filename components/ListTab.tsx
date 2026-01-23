@@ -1,169 +1,391 @@
 import React, { useState } from 'react';
-import { TodoItem, TodoType } from '../types';
+import { TodoItem, TogetherCategory } from '../types';
 import { DoodleButton } from './DoodleButton';
-import { Plus, User, Users, Check, Trash2, Shuffle, Sparkles, X } from 'lucide-react';
+import { Plus, Check, Trash2, FolderOpen, Folder, Calendar, Dices, X, RotateCcw, ArrowRight } from 'lucide-react';
+import { ConfirmModal } from './ConfirmModal';
 
 interface ListTabProps {
   todos: TodoItem[];
-  userId: string;
-  onAdd: (text: string, type: TodoType) => void;
-  onToggle: (id: string) => void;
+  onAdd: (text: string, category: TogetherCategory, deadline?: number | null) => void;
+  onComplete: (id: string) => void;
   onDelete: (todo: TodoItem) => void;
 }
 
-export const ListTab: React.FC<ListTabProps> = ({ todos, userId, onAdd, onToggle, onDelete }) => {
-  const [view, setView] = useState<'list' | 'pool'>('list');
-  const [filter, setFilter] = useState<TodoType | 'all'>('all');
+export const ListTab: React.FC<ListTabProps> = ({ todos, onAdd, onComplete, onDelete }) => {
+  // Navigation: 'list' (Needs to happen), 'random' (Could happen), 'folder' (Archive)
+  const [subTab, setSubTab] = useState<'list' | 'random' | 'folder'>('list');
+  
+  // Add Modal State
   const [isAdding, setIsAdding] = useState(false);
   const [newText, setNewText] = useState('');
-  const [newType, setNewType] = useState<TodoType>('we');
-  
+  const [hasDeadline, setHasDeadline] = useState(false);
+  const [deadlineDate, setDeadlineDate] = useState(''); // YYYY-MM-DD string
+
   // Randomizer State
-  const [destinyResult, setDestinyResult] = useState<string | null>(null);
+  const [randomItem, setRandomItem] = useState<TodoItem | null>(null);
+  const [isSpinning, setIsSpinning] = useState(false);
 
-  const handleAdd = (e: React.FormEvent) => {
+  // Filter lists based on new structure
+  // 1. Active Lists (Not completed)
+  const activeListItems = todos.filter(t => (t.category === 'list' || t.type) && !t.completedAt && t.category !== 'random'); // Handle legacy items as list
+  const activeRandomItems = todos.filter(t => t.category === 'random' && !t.completedAt);
+  
+  // 2. Archived Lists
+  const completedItems = todos.filter(t => !!t.completedAt).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+
+  // Sort Active List: Items with deadlines come first (ascending), then items without (by creation)
+  const sortedListItems = [...activeListItems].sort((a, b) => {
+    if (a.deadline && b.deadline) return a.deadline - b.deadline;
+    if (a.deadline) return -1;
+    if (b.deadline) return 1;
+    return b.createdAt - a.createdAt;
+  });
+
+  const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newText.trim()) {
-      onAdd(newText, newType);
-      setNewText('');
-      setIsAdding(false);
-    }
-  };
+    if (!newText.trim()) return;
 
-  const spinDestiny = () => {
-    const pool = todos.filter(t => t.type === 'we' && !t.isCompleted);
-    if (pool.length === 0) {
-      alert("Add some 'WE' items first!");
-      return;
+    let deadlineTimestamp: number | null = null;
+    if (subTab === 'list' && hasDeadline && deadlineDate) {
+       // Set time to end of day (or noon) to avoid timezone/start-of-day confusion when comparing
+       const d = new Date(deadlineDate);
+       // Use noon to be safe
+       d.setHours(12, 0, 0, 0);
+       deadlineTimestamp = d.getTime();
     }
-    setDestinyResult("Spinning...");
+
+    const category: TogetherCategory = subTab === 'random' ? 'random' : 'list';
     
-    let i = 0;
-    const interval = setInterval(() => {
-        setDestinyResult(pool[Math.floor(Math.random() * pool.length)].text);
-        i++;
-        if (i > 10) {
-            clearInterval(interval);
-        }
-    }, 100);
+    onAdd(newText, category, deadlineTimestamp);
+    
+    // Reset
+    setNewText('');
+    setHasDeadline(false);
+    setDeadlineDate('');
+    setIsAdding(false);
   };
 
-  const getFilteredTodos = () => {
-    if (filter === 'all') return todos;
-    return todos.filter(t => t.type === filter);
+  const spinRandomizer = () => {
+      if (activeRandomItems.length === 0) return;
+      
+      setIsSpinning(true);
+      let count = 0;
+      const interval = setInterval(() => {
+          const randomIdx = Math.floor(Math.random() * activeRandomItems.length);
+          setRandomItem(activeRandomItems[randomIdx]);
+          count++;
+          if (count > 10) {
+              clearInterval(interval);
+              setIsSpinning(false);
+          }
+      }, 100);
   };
 
-  const getTypeColor = (type: TodoType) => {
-    switch (type) {
-      case 'me': return 'bg-green-100 border-green-300';
-      case 'you': return 'bg-blue-100 border-blue-300';
-      case 'we': return 'bg-yellow-100 border-yellow-300';
-    }
+  const formatDate = (ts?: number | null) => {
+      if (!ts) return null;
+      return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
+  
+  const getRoughTime = (ts: number) => {
+      const diff = Date.now() - ts;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      if (days === 0) return 'Today';
+      if (days === 1) return 'Yesterday';
+      if (days < 7) return 'This week';
+      return new Date(ts).toLocaleDateString();
+  };
+
+  const getCountdown = (ts: number) => {
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      
+      const target = new Date(ts);
+      target.setHours(0,0,0,0);
+      
+      const diffTime = target.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) return { text: `${Math.abs(diffDays)}d late`, color: 'bg-red-100 text-red-600 border-red-200' };
+      if (diffDays === 0) return { text: 'Today!', color: 'bg-orange-100 text-orange-700 border-orange-200' };
+      if (diffDays === 1) return { text: 'Tomorrow', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+      return { text: `${diffDays}d left`, color: 'bg-blue-50 text-blue-600 border-blue-100' };
+  };
+
+  // --- RENDERERS ---
+
+  const renderAddModal = () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <form onSubmit={handleAddSubmit} className="bg-white w-full max-w-sm rounded-[2rem] border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] p-6 space-y-6">
+              <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-xl">
+                      {subTab === 'list' ? 'Needs to Happen' : 'Could Happen'}
+                  </h3>
+                  <button type="button" onClick={() => setIsAdding(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20}/></button>
+              </div>
+
+              <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">What is it?</label>
+                  <textarea 
+                    autoFocus
+                    className="w-full text-xl font-bold border-2 border-black rounded-xl p-3 focus:outline-none focus:ring-4 ring-yellow-200 resize-none"
+                    rows={2}
+                    placeholder={subTab === 'list' ? "e.g. Pay bills..." : "e.g. Get ice cream..."}
+                    value={newText}
+                    onChange={e => setNewText(e.target.value)}
+                  />
+              </div>
+
+              {subTab === 'list' && (
+                  <div className="bg-gray-50 p-4 rounded-xl border-2 border-black/5">
+                      <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-gray-600">Has a deadline?</span>
+                          <button 
+                            type="button"
+                            onClick={() => setHasDeadline(!hasDeadline)}
+                            className={`w-12 h-7 rounded-full border-2 border-black transition-colors relative ${hasDeadline ? 'bg-[#86efac]' : 'bg-gray-200'}`}
+                          >
+                              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white border-2 border-black rounded-full transition-transform ${hasDeadline ? 'translate-x-5' : 'translate-x-0'}`} />
+                          </button>
+                      </div>
+                      
+                      {hasDeadline && (
+                          <input 
+                            type="date" 
+                            className="w-full p-2 font-bold bg-white border-2 border-black rounded-lg mt-2"
+                            value={deadlineDate}
+                            onChange={e => setDeadlineDate(e.target.value)}
+                            required={hasDeadline}
+                          />
+                      )}
+                  </div>
+              )}
+
+              <DoodleButton type="submit" className="w-full">
+                  Add to {subTab === 'list' ? 'List' : 'Random'}
+              </DoodleButton>
+          </form>
+      </div>
+  );
+
+  const renderRandomizer = () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#fffbeb] w-full max-w-sm rounded-[2.5rem] border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] p-8 text-center relative overflow-hidden">
+               <div className="mb-8">
+                   <div className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Fate Chose</div>
+                   <h2 className={`text-4xl font-bold font-[Patrick_Hand] leading-tight ${isSpinning ? 'blur-sm' : ''}`}>
+                       {randomItem?.text}
+                   </h2>
+               </div>
+
+               <div className="space-y-3">
+                   <DoodleButton 
+                    onClick={() => { onComplete(randomItem!.id); setRandomItem(null); }}
+                    className="w-full bg-[#86efac] flex items-center justify-center gap-2"
+                   >
+                       <Check /> Let's do it!
+                   </DoodleButton>
+                   
+                   <div className="flex gap-2">
+                       <button 
+                        onClick={spinRandomizer}
+                        className="flex-1 py-3 font-bold border-4 border-black rounded-xl hover:bg-gray-100 flex items-center justify-center gap-2"
+                       >
+                           <RotateCcw size={18} /> Pick Another
+                       </button>
+                       <button 
+                         onClick={() => setRandomItem(null)}
+                         className="flex-1 py-3 font-bold border-4 border-transparent hover:bg-black/5 rounded-xl text-gray-500"
+                       >
+                           Put Back
+                       </button>
+                   </div>
+               </div>
+          </div>
+      </div>
+  );
 
   return (
-    <div className="space-y-4">
-      {/* View Switcher */}
-      <div className="flex bg-black/5 p-1 rounded-xl">
+    <div className="space-y-4 relative min-h-[60vh]">
+      {/* 1. Navigation */}
+      <div className="flex gap-2 items-center mb-6">
+        <div className="flex-1 flex bg-black/5 p-1 rounded-xl">
+            <button 
+            onClick={() => setSubTab('list')}
+            className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${subTab === 'list' ? 'bg-white shadow-sm border border-black/10' : 'text-gray-500'}`}
+            >
+            List
+            </button>
+            <button 
+            onClick={() => setSubTab('random')}
+            className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${subTab === 'random' ? 'bg-white shadow-sm border border-black/10' : 'text-gray-500'}`}
+            >
+            Random
+            </button>
+        </div>
+        
         <button 
-          onClick={() => setView('list')}
-          className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${view === 'list' ? 'bg-white shadow-sm' : 'text-gray-500'}`}
+            onClick={() => setSubTab('folder')}
+            className={`p-3 rounded-xl border-2 transition-all ${subTab === 'folder' ? 'bg-yellow-100 border-black' : 'bg-white border-black/10 text-gray-400'}`}
         >
-          📝 List
-        </button>
-        <button 
-          onClick={() => setView('pool')}
-          className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${view === 'pool' ? 'bg-white shadow-sm' : 'text-gray-500'}`}
-        >
-          🎱 Pool
+            {subTab === 'folder' ? <FolderOpen size={20} /> : <Folder size={20} />}
         </button>
       </div>
 
-      {view === 'pool' ? (
-        <div className="text-center py-10 space-y-8 animate-in fade-in">
-             <div className="bg-white p-8 rounded-full w-64 h-64 mx-auto border-8 border-black flex items-center justify-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
-                {destinyResult ? (
-                    <p className="font-bold text-2xl font-[Patrick_Hand] animate-bounce">{destinyResult}</p>
-                ) : (
-                    <span className="text-6xl">🎱</span>
-                )}
-             </div>
-             
-             <DoodleButton onClick={spinDestiny} className="w-full text-xl flex items-center justify-center gap-2">
-                 <Sparkles /> Destiny Pick
-             </DoodleButton>
-             <p className="text-gray-500 font-bold">Randomly picks from "WE" list</p>
-        </div>
-      ) : (
-        <>
-          {/* Filters */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {(['all', 'me', 'you', 'we'] as const).map(f => (
-                <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-4 py-1 rounded-full border-2 text-sm font-bold capitalize whitespace-nowrap ${filter === f ? 'bg-black text-white border-black' : 'bg-white border-black/10 text-gray-500'}`}
-                >
-                    {f}
-                </button>
-            ))}
-          </div>
+      {/* 2. Content Views */}
 
-          {/* List */}
-          <div className="space-y-2">
-            {getFilteredTodos().length === 0 && (
-                <div className="text-center py-8 opacity-40 font-bold">Empty list...</div>
-            )}
-            
-            {getFilteredTodos().map(todo => (
-               <div key={todo.id} className={`p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${todo.isCompleted ? 'opacity-50 grayscale bg-gray-100' : getTypeColor(todo.type)} ${todo.type === 'me' ? 'border-green-400' : todo.type === 'you' ? 'border-blue-400' : 'border-yellow-400'}`}>
-                  <button 
-                    onClick={() => onToggle(todo.id)}
-                    className={`w-6 h-6 rounded-md border-2 border-black flex items-center justify-center ${todo.isCompleted ? 'bg-black text-white' : 'bg-white'}`}
-                  >
-                     {todo.isCompleted && <Check size={14} />}
-                  </button>
-                  
-                  <span className={`flex-1 font-bold ${todo.isCompleted ? 'line-through' : ''}`}>{todo.text}</span>
-                  
-                  <div className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-white/50 rounded-md border border-black/5">
-                    {todo.type}
+      {/* --- LIST VIEW --- */}
+      {subTab === 'list' && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-left-4">
+              {sortedListItems.length === 0 && (
+                  <div className="text-center py-12 opacity-40">
+                      <div className="text-6xl mb-2">📝</div>
+                      <p className="font-bold">Nothing needs to happen right now.</p>
                   </div>
+              )}
+              {sortedListItems.map(item => (
+                  <div key={item.id} className="group relative bg-[#fffbeb] p-4 min-h-[100px] flex flex-col justify-between border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-[-1deg] hover:rotate-0 transition-transform">
+                      {/* Tape */}
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-yellow-200/50 backdrop-blur-sm rotate-2 border-l border-r border-white/50 clip-path-tape"></div>
+                      
+                      <p className="font-[Patrick_Hand] text-2xl leading-6 mb-4 pr-6">{item.text}</p>
+                      
+                      <div className="flex justify-between items-end">
+                          {/* Date Indicator & Countdown */}
+                          {item.deadline ? (
+                              <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1 text-xs font-bold bg-white px-2 py-1 rounded border border-black/10 text-gray-500">
+                                      <Calendar size={12} /> {formatDate(item.deadline)}
+                                  </div>
+                                  {(() => {
+                                      const countdown = getCountdown(item.deadline);
+                                      return (
+                                          <div className={`text-[10px] font-bold px-2 py-1 rounded border ${countdown.color}`}>
+                                              {countdown.text}
+                                          </div>
+                                      );
+                                  })()}
+                              </div>
+                          ) : (
+                              <div className="text-xs font-bold text-gray-300">No deadline</div>
+                          )}
 
-                  <button onClick={() => onDelete(todo)} className="text-black/20 hover:text-red-500 transition-colors">
-                     <Trash2 size={16} />
-                  </button>
-               </div>
-            ))}
+                          <div className="flex gap-2">
+                              {/* Delete */}
+                              <button 
+                                onClick={() => { if(confirm("Delete this?")) onDelete(item); }}
+                                className="p-2 text-gray-300 hover:text-red-400 transition-colors"
+                              >
+                                  <Trash2 size={18} />
+                              </button>
+                              {/* Complete */}
+                              <button 
+                                onClick={() => onComplete(item.id)}
+                                className="w-10 h-10 bg-white border-2 border-black rounded-full flex items-center justify-center hover:bg-[#86efac] transition-colors shadow-sm"
+                              >
+                                  <Check />
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              ))}
+              
+              {/* Dashed Add Card */}
+              <button 
+                onClick={() => setIsAdding(true)}
+                className="w-full h-24 rounded-2xl border-4 border-black/10 border-dashed flex flex-col items-center justify-center gap-2 text-gray-300 hover:bg-black/5 hover:text-gray-500 transition-colors"
+              >
+                  <Plus size={32} />
+                  <span className="font-bold">Add to List</span>
+              </button>
           </div>
-          
-           {/* Add Input */}
-           {isAdding ? (
-              <form onSubmit={handleAdd} className="mt-4 bg-white p-4 rounded-xl border-4 border-black shadow-lg animate-in slide-in-from-bottom-2">
-                 <input 
-                    autoFocus
-                    className="w-full text-lg font-bold border-b-2 border-black focus:outline-none bg-transparent mb-4"
-                    placeholder="Add item..."
-                    value={newText}
-                    onChange={e => setNewText(e.target.value)}
-                 />
-                 <div className="flex gap-2 mb-4">
-                    <button type="button" onClick={() => setNewType('me')} className={`flex-1 py-1 rounded border-2 border-black font-bold text-sm ${newType === 'me' ? 'bg-green-200' : 'bg-white'}`}>ME</button>
-                    <button type="button" onClick={() => setNewType('you')} className={`flex-1 py-1 rounded border-2 border-black font-bold text-sm ${newType === 'you' ? 'bg-blue-200' : 'bg-white'}`}>YOU</button>
-                    <button type="button" onClick={() => setNewType('we')} className={`flex-1 py-1 rounded border-2 border-black font-bold text-sm ${newType === 'we' ? 'bg-yellow-200' : 'bg-white'}`}>WE</button>
-                 </div>
-                 <div className="flex justify-end gap-2">
-                    <button type="button" onClick={() => setIsAdding(false)} className="p-2 bg-gray-100 rounded-lg"><X size={20}/></button>
-                    <button type="submit" className="px-4 py-2 bg-black text-white font-bold rounded-lg">Add</button>
-                 </div>
-              </form>
-           ) : (
-             <button onClick={() => setIsAdding(true)} className="w-full py-3 bg-black/5 border-2 border-black/10 border-dashed rounded-xl font-bold text-gray-400 hover:bg-black/10 flex items-center justify-center gap-2">
-                <Plus size={20} /> Add Item
-             </button>
-           )}
-        </>
       )}
+
+      {/* --- RANDOM VIEW --- */}
+      {subTab === 'random' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+              
+              {/* Randomizer Hero */}
+              <div className="bg-white rounded-[2rem] border-4 border-black p-6 text-center shadow-md">
+                   <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-black">
+                       <Dices size={40} className="text-purple-600" />
+                   </div>
+                   <h3 className="text-xl font-bold mb-1">What should we do?</h3>
+                   <p className="text-gray-500 text-sm mb-6 font-bold">{activeRandomItems.length} ideas in the pool</p>
+                   
+                   <DoodleButton 
+                    onClick={spinRandomizer}
+                    disabled={activeRandomItems.length === 0}
+                    className="w-full bg-[#fde047]"
+                   >
+                       Pick One!
+                   </DoodleButton>
+              </div>
+
+              {/* Pool List */}
+              <div className="space-y-2 pb-20">
+                  <h4 className="font-bold text-gray-400 text-sm uppercase tracking-widest pl-2">The Pool</h4>
+                  {activeRandomItems.length === 0 ? (
+                      <p className="text-center text-gray-400 py-4 italic">The pool is empty. Add fun ideas!</p>
+                  ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                          {activeRandomItems.map(item => (
+                              <div key={item.id} className="bg-white p-3 border-2 border-black rounded-xl shadow-sm relative group text-center flex flex-col items-center justify-center min-h-[80px]">
+                                  <p className="font-bold leading-tight">{item.text}</p>
+                                  <button 
+                                    onClick={() => { if(confirm("Remove this idea?")) onDelete(item); }}
+                                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 text-red-400 rounded transition-all"
+                                  >
+                                      <X size={14} />
+                                  </button>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+                  {/* Dashed Add Card for Random */}
+                  <button 
+                    onClick={() => setIsAdding(true)}
+                    className="w-full h-20 rounded-xl border-4 border-black/10 border-dashed flex flex-col items-center justify-center gap-1 text-gray-300 hover:bg-black/5 hover:text-gray-500 transition-colors mt-2"
+                  >
+                      <Plus size={24} />
+                      <span className="font-bold">Add to Pool</span>
+                  </button>
+              </div>
+          </div>
+      )}
+
+      {/* --- FOLDER VIEW --- */}
+      {subTab === 'folder' && (
+          <div className="space-y-4 animate-in fade-in zoom-in-95">
+              <div className="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200 text-yellow-800 text-center">
+                  <span className="text-3xl font-bold block mb-1">{completedItems.length}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest opacity-70">Things Done Together</span>
+              </div>
+
+              <div className="space-y-2">
+                  {completedItems.map(item => (
+                      <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 opacity-70">
+                           <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                               <Check size={14} className="text-gray-500" />
+                           </div>
+                           <div className="flex-1 min-w-0">
+                               <p className="font-bold text-gray-500 line-through truncate">{item.text}</p>
+                               <p className="text-[10px] font-bold text-gray-400">{getRoughTime(item.completedAt || 0)}</p>
+                           </div>
+                      </div>
+                  ))}
+                  {completedItems.length === 0 && (
+                      <div className="text-center py-12 opacity-30 font-bold text-gray-400">
+                          Your shared history starts here.
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+
+      {/* Modals */}
+      {isAdding && renderAddModal()}
+      {randomItem && renderRandomizer()}
+
     </div>
   );
 };

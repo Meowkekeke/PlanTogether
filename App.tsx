@@ -1,21 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sprout, Copy, LogOut, Heart, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Share2, Settings, Trash2, RefreshCw, X } from 'lucide-react';
+import { Sprout, Copy, LogOut, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Settings, Trash2, RefreshCw, X } from 'lucide-react';
 import { 
-  createRoom, joinRoom, subscribeToRoom, logMood, sendInteraction,
+  createRoom, joinRoom, subscribeToRoom, sendInteraction,
   addActivity, logActivityOccurrence, deleteActivity,
-  addTodo, toggleTodo, deleteTodo,
+  addTodo, completeTodo, deleteTodo,
   addGoal, incrementGoal, deleteGoal,
+  addSticky, deleteSticky,
   deleteRoom,
   getUUID
 } from './services/db';
-import { RoomData, Mood, InteractionType, TodoType, ActivityNature, Activity, Goal } from './types';
-import { MoodCard } from './components/MoodCard';
-import { MoodEditor } from './components/MoodEditor';
+import { RoomData, InteractionType, ActivityNature, Activity, Goal } from './types';
 import { DoodleButton } from './components/DoodleButton';
-import { InteractionBar } from './components/InteractionBar';
 import { TrackerTab } from './components/TrackerTab';
 import { ListTab } from './components/ListTab';
 import { GoalTab } from './components/GoalTab';
+import { HomeBoard } from './components/HomeBoard';
 import { ConfirmModal } from './components/ConfirmModal';
 
 // Utility for persistent User ID using robust UUID
@@ -37,11 +36,9 @@ const App: React.FC = () => {
   
   // UI State
   const [mainTab, setMainTab] = useState<'mood' | 'track' | 'list' | 'goal'>('mood');
-  const [moodSubTab, setMoodSubTab] = useState<'me' | 'partner'>('me');
   const [inputCode, setInputCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isEditingMood, setIsEditingMood] = useState(false);
   const [showNameModal, setShowNameModal] = useState(!localStorage.getItem('lovesync_name'));
   const [showSettings, setShowSettings] = useState(false);
   
@@ -96,6 +93,15 @@ const App: React.FC = () => {
     const isHost = roomData.hostId === userId;
     const partnerName = isHost ? roomData.guestState?.name : roomData.hostState?.name;
     return partnerName && partnerName !== 'Waiting for partner...' ? partnerName : 'Partner';
+  };
+
+  // Safe name resolver for HomeBoard
+  const getUserName = (id: string) => {
+    if (!roomData) return 'Unknown';
+    if (id === userId) return "Me";
+    if (id === roomData.hostId) return roomData.hostState.name || 'Partner';
+    if (id === roomData.guestId) return roomData.guestState.name || 'Partner';
+    return 'Partner';
   };
 
   const showAlert = (title: string, message: string) => {
@@ -224,15 +230,14 @@ const App: React.FC = () => {
   };
 
   // --- Feature Handlers ---
-  const handleAddLog = async (mood: Mood, note: string) => {
+  const handleAddSticky = async (type: any, content: any) => {
     if (!roomCode) return;
-    await logMood(roomCode, userId, userName, mood, note);
-    setIsEditingMood(false);
+    await addSticky(roomCode, userId, type, content);
   };
-  
-  const handleInteraction = async (type: InteractionType) => {
-      if (!roomCode) return;
-      await sendInteraction(roomCode, userId, type);
+
+  const handleDeleteSticky = async (id: string) => {
+    if (!roomCode) return;
+    await deleteSticky(roomCode, id);
   };
 
   const handleClaimReward = async (reward: string) => {
@@ -241,7 +246,8 @@ const App: React.FC = () => {
         "Claim Reward!", 
         <span>Claim <b>"{reward}"</b>? This will add it to your "WE" list.</span>,
         async () => {
-             await addTodo(roomCode, `Reward: ${reward}`, 'we');
+             // Goals claim into "List" as items that need to happen
+             await addTodo(roomCode, `Reward: ${reward}`, 'list', null);
              setMainTab('list');
         },
         false,
@@ -420,12 +426,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Derived Data for Mood Log View
-  const logs = roomData.logs || [];
-  const sortedLogs = [...logs].sort((a, b) => b.timestamp - a.timestamp);
-  const myLogs = sortedLogs.filter(l => l.userId === userId);
-  const partnerLogs = sortedLogs.filter(l => l.userId !== userId);
-
   return (
     <div className="min-h-screen flex flex-col max-w-md md:max-w-2xl mx-auto relative bg-[#fefce8]">
       <BackgroundDoodles />
@@ -474,101 +474,29 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto p-4 pb-24 relative z-10">
         
-        {/* --- TAB 1: MOOD --- */}
+        {/* --- TAB 1: HOME (Sticky Board) --- */}
         {mainTab === 'mood' && (
             <div className="animate-in fade-in zoom-in-95 duration-200">
-                <nav className="flex gap-2 mb-4">
-                    <button 
-                    onClick={() => setMoodSubTab('me')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-4 font-bold text-lg transition-all ${
-                        moodSubTab === 'me' 
-                        ? 'bg-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-y-[-2px]' 
-                        : 'bg-black/5 border-transparent text-gray-500 hover:bg-black/10'
-                    }`}
-                    >
-                    <User size={18} /> Me
-                    </button>
-                    <button 
-                    onClick={() => setMoodSubTab('partner')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border-4 font-bold text-lg transition-all ${
-                        moodSubTab === 'partner' 
-                        ? 'bg-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-y-[-2px]' 
-                        : 'bg-black/5 border-transparent text-gray-500 hover:bg-black/10'
-                    }`}
-                    >
-                    <Users size={18} /> {getPartnerName()}
-                    </button>
-                </nav>
+                <div className="flex items-center justify-between mb-2 px-2">
+                   <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Shared Board</span>
+                   {/* Legend */}
+                   <div className="flex gap-3 text-[10px] font-bold">
+                       <div className="flex items-center gap-1"><div className="w-3 h-3 bg-[#86efac] border border-black rounded-full"></div> Me</div>
+                       <div className="flex items-center gap-1"><div className="w-3 h-3 bg-[#93c5fd] border border-black rounded-full"></div> {getPartnerName()}</div>
+                   </div>
+                </div>
 
-                {moodSubTab === 'me' && (
-                    <div className="space-y-4">
-                         {/* Invite Banner for Host */}
-                        {!roomData.guestId && (
-                            <div className="bg-[#fde047] p-4 rounded-2xl border-4 border-black shadow-sm mb-4 flex items-center justify-between">
-                                <div>
-                                    <h3 className="font-bold text-lg leading-tight">Sync with Partner!</h3>
-                                    <p className="text-xs font-bold opacity-70">Send them code: {roomCode}</p>
-                                </div>
-                                <button 
-                                    onClick={copyCode}
-                                    className="bg-white px-3 py-2 rounded-lg border-2 border-black font-bold text-sm hover:scale-105 transition-transform"
-                                >
-                                    Copy Code
-                                </button>
-                            </div>
-                        )}
-
-                        {myLogs.length === 0 ? (
-                            <div className="text-center py-10 opacity-60"><p className="font-bold text-xl">No notes yet!</p></div>
-                        ) : (
-                            myLogs.map(log => (
-                                <MoodCard key={log.id} data={log} isMe={true} />
-                            ))
-                        )}
-                    </div>
-                )}
-
-                {moodSubTab === 'partner' && (
-                    <div className="space-y-4">
-                        {roomData.guestId ? (
-                            <>
-                                <InteractionBar onInteract={handleInteraction} disabled={false} />
-                                {partnerLogs.length === 0 ? (
-                                    <div className="text-center py-10 opacity-60"><p className="font-bold text-xl">{getPartnerName()} hasn't posted yet.</p></div>
-                                ) : (
-                                    partnerLogs.map(log => (
-                                        <MoodCard key={log.id} data={log} isMe={false} />
-                                    ))
-                                )}
-                            </>
-                        ) : (
-                            <div className="bg-white p-8 rounded-3xl border-4 border-black border-dashed text-center flex flex-col items-center gap-4">
-                                <div className="animate-spin text-4xl">⏳</div>
-                                <div className="w-full">
-                                    <p className="font-bold text-gray-500 text-xl mb-2">Waiting for partner...</p>
-                                    <p className="text-sm text-gray-400 mb-2">Send them this code to sync:</p>
-                                    
-                                    <div 
-                                        onClick={copyCode}
-                                        className="bg-gray-100 p-4 rounded-xl border-2 border-black/10 mb-2 cursor-pointer hover:bg-yellow-50 active:scale-95 transition-all"
-                                    >
-                                        <span className="text-4xl font-mono font-bold tracking-[0.2em] text-black">{roomCode}</span>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={copyCode}
-                                    className="flex items-center gap-2 px-6 py-3 bg-[#fde047] border-4 border-black rounded-xl font-bold hover:scale-105 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none"
-                                >
-                                    <Share2 size={20} /> Copy & Send
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
+                <HomeBoard 
+                   stickies={roomData.stickies || []}
+                   userId={userId}
+                   getUserName={getUserName}
+                   onAddSticky={handleAddSticky}
+                   onDeleteSticky={handleDeleteSticky}
+                />
             </div>
         )}
 
-        {/* --- TAB 2: TRACKER (Replaces Habits) --- */}
+        {/* --- TAB 2: TRACKER --- */}
         {mainTab === 'track' && (
             <div className="animate-in slide-in-from-right-4 duration-300">
                 <TrackerTab 
@@ -583,14 +511,13 @@ const App: React.FC = () => {
             </div>
         )}
 
-        {/* --- TAB 3: LIST --- */}
+        {/* --- TAB 3: TOGETHER --- */}
         {mainTab === 'list' && (
             <div className="animate-in slide-in-from-right-4 duration-300">
                 <ListTab 
                     todos={roomData.todos || []}
-                    userId={userId}
-                    onAdd={(text, type) => addTodo(roomCode!, text, type, type === 'me' ? userId : (type === 'you' ? (userId === roomData.hostId ? roomData.guestId : roomData.hostId) : undefined))}
-                    onToggle={(id) => toggleTodo(roomCode!, id, roomData.todos || [])}
+                    onAdd={(text, category, deadline) => addTodo(roomCode!, text, category, deadline)}
+                    onComplete={(id) => completeTodo(roomCode!, id, roomData.todos || [])}
                     onDelete={(todo) => deleteTodo(roomCode!, todo)}
                 />
             </div>
@@ -618,21 +545,21 @@ const App: React.FC = () => {
                 <div className={`p-2 rounded-full border-2 ${mainTab === 'mood' ? 'bg-[#fde047] border-black' : 'border-transparent'}`}>
                     <Smile size={24} strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-bold">Mood</span>
+                <span className="text-[10px] font-bold">Home</span>
             </button>
             
             <button onClick={() => setMainTab('track')} className={`p-2 rounded-xl flex flex-col items-center gap-1 transition-all ${mainTab === 'track' ? 'text-black scale-110' : 'text-gray-400'}`}>
                 <div className={`p-2 rounded-full border-2 ${mainTab === 'track' ? 'bg-[#86efac] border-black' : 'border-transparent'}`}>
                     <BarChart3 size={24} strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-bold">Activities</span>
+                <span className="text-[10px] font-bold">Tracker</span>
             </button>
 
             <button onClick={() => setMainTab('list')} className={`p-2 rounded-xl flex flex-col items-center gap-1 transition-all ${mainTab === 'list' ? 'text-black scale-110' : 'text-gray-400'}`}>
                 <div className={`p-2 rounded-full border-2 ${mainTab === 'list' ? 'bg-[#93c5fd] border-black' : 'border-transparent'}`}>
                     <ListTodo size={24} strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-bold">List</span>
+                <span className="text-[10px] font-bold">Together</span>
             </button>
 
             <button onClick={() => setMainTab('goal')} className={`p-2 rounded-xl flex flex-col items-center gap-1 transition-all ${mainTab === 'goal' ? 'text-black scale-110' : 'text-gray-400'}`}>
@@ -643,28 +570,6 @@ const App: React.FC = () => {
             </button>
          </div>
       </div>
-
-      {/* Floating Action Button for Mood (Only visible on Mood Tab) */}
-      {mainTab === 'mood' && (
-        <div className="fixed bottom-24 right-6 z-30 animate-in zoom-in">
-            <button 
-                onClick={() => setIsEditingMood(true)}
-                className="w-14 h-14 bg-[#fde047] border-4 border-black rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center hover:bg-[#facc15] active:translate-y-1 active:shadow-none transition-all"
-            >
-                <Plus size={28} strokeWidth={3} />
-            </button>
-        </div>
-      )}
-
-      {/* Mood Editor Modal */}
-      {isEditingMood && (
-        <MoodEditor 
-          currentMood={Mood.HAPPY} 
-          currentNote=""
-          onSave={handleAddLog}
-          onCancel={() => setIsEditingMood(false)}
-        />
-      )}
 
       {/* Settings Modal */}
       {showSettings && (
