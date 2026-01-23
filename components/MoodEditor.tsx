@@ -11,6 +11,46 @@ interface MoodEditorProps {
   onCancel: () => void;
 }
 
+// Custom Category Icons
+const CategoryIcon = ({ category }: { category: MoodCategory }) => {
+    const props = {
+        viewBox: "0 0 100 100",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: "6",
+        strokeLinecap: "round" as const,
+        strokeLinejoin: "round" as const,
+        className: "w-6 h-6 mr-2"
+    };
+
+    switch(category) {
+        case 'positive': // Sun
+            return (
+                <svg {...props}>
+                    <circle cx="50" cy="50" r="25" fill="#fde047" stroke="black" />
+                    <path d="M50 10 L50 20 M50 80 L50 90" stroke="black" />
+                    <path d="M10 50 L20 50 M80 50 L90 50" stroke="black" />
+                    <path d="M22 22 L28 28 M72 72 L78 78" stroke="black" />
+                    <path d="M22 78 L28 72 M72 28 L78 22" stroke="black" />
+                </svg>
+            );
+        case 'neutral': // Cloud
+            return (
+                 <svg {...props}>
+                    <path d="M25 65 Q10 65 10 50 Q10 35 25 35 Q30 15 50 20 Q70 10 80 30 Q95 30 90 50 Q95 65 75 65 L25 65 Z" fill="#f3f4f6" stroke="black" />
+                </svg>
+            );
+        case 'negative': // Storm
+            return (
+                <svg {...props}>
+                    <path d="M25 60 Q10 60 10 45 Q10 30 25 30 Q30 10 50 15 Q70 5 80 25 Q95 25 90 45 Q95 60 75 60 L25 60 Z" fill="#93c5fd" stroke="black" />
+                    <path d="M40 60 L35 75 L45 75 L40 85" stroke="black" strokeWidth="3" />
+                    <path d="M65 60 L60 75 L70 75 L65 85" stroke="black" strokeWidth="3" />
+                </svg>
+            );
+    }
+}
+
 export const MoodEditor: React.FC<MoodEditorProps> = ({ currentMood, currentNote, onSave, onCancel }) => {
   const [selectedCategory, setSelectedCategory] = useState<MoodCategory>('positive');
   const [selectedMood, setSelectedMood] = useState<Mood>(currentMood);
@@ -52,14 +92,14 @@ export const MoodEditor: React.FC<MoodEditorProps> = ({ currentMood, currentNote
                         type="button"
                         onClick={() => setSelectedCategory(cat)}
                         className={`
-                            flex-1 py-2 rounded-xl text-sm font-bold transition-all border-2
+                            flex-1 py-2 rounded-xl text-sm font-bold transition-all border-2 flex items-center justify-center
                             ${isActive 
                                 ? 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] translate-y-[-1px]' 
                                 : 'bg-transparent border-transparent text-gray-500 hover:bg-black/5'
                             }
                         `}
                     >
-                        <span className="mr-1">{categoryData.emoji}</span>
+                        <CategoryIcon category={cat} />
                         {categoryData.label}
                     </button>
                 )
@@ -83,7 +123,7 @@ export const MoodEditor: React.FC<MoodEditorProps> = ({ currentMood, currentNote
                         `}
                     >
                         <MoodIcon mood={mood} className="w-10 h-10 mb-1" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-black/70">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-black/70">
                             {mood}
                         </span>
                         

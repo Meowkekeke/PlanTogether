@@ -1,22 +1,37 @@
 
 export enum Mood {
-  // Positive
+  // Positive (9)
   HAPPY = 'happy',
   EXCITED = 'excited',
   ROMANTIC = 'romantic',
   CHILL = 'chill',
   GRATEFUL = 'grateful',
+  PROUD = 'proud',
+  ENERGETIC = 'energetic',
+  SILLY = 'silly',
+  HOPEFUL = 'hopeful',
   
-  // Neutral/Body
+  // Neutral (9)
   HUNGRY = 'hungry',
   TIRED = 'tired',
   CONFUSED = 'confused',
+  BORED = 'bored',
+  BUSY = 'busy',
+  CURIOUS = 'curious',
+  MEH = 'meh',
+  DISTRACTED = 'distracted',
+  WAITING = 'waiting',
 
-  // Negative
+  // Negative (9)
   SAD = 'sad',
   ANGRY = 'angry',
   SICK = 'sick',
-  STRESSED = 'stressed'
+  STRESSED = 'stressed',
+  ANXIOUS = 'anxious',
+  LONELY = 'lonely',
+  HURT = 'hurt',
+  OVERWHELMED = 'overwhelmed',
+  GRUMPY = 'grumpy'
 }
 
 export type InteractionType = 'water' | 'sun' | 'love' | 'poke';
@@ -154,23 +169,32 @@ export interface RoomData {
 
 export type MoodCategory = 'positive' | 'neutral' | 'negative';
 
-export const MOOD_CATEGORIES: Record<MoodCategory, { label: string, emoji: string, moods: Mood[], baseColor: string }> = {
+export const MOOD_CATEGORIES: Record<MoodCategory, { label: string, moods: Mood[], baseColor: string }> = {
   positive: { 
     label: 'Happy', 
-    emoji: '😊',
-    moods: [Mood.HAPPY, Mood.EXCITED, Mood.ROMANTIC, Mood.CHILL, Mood.GRATEFUL],
+    moods: [
+        Mood.HAPPY, Mood.EXCITED, Mood.GRATEFUL, 
+        Mood.ROMANTIC, Mood.CHILL, Mood.PROUD, 
+        Mood.ENERGETIC, Mood.SILLY, Mood.HOPEFUL
+    ],
     baseColor: 'bg-[#fef9c3]' // Yellow-100
   },
   neutral: { 
     label: 'Ok-ish', 
-    emoji: '😐',
-    moods: [Mood.HUNGRY, Mood.TIRED, Mood.CONFUSED],
+    moods: [
+        Mood.HUNGRY, Mood.TIRED, Mood.CONFUSED, 
+        Mood.BORED, Mood.BUSY, Mood.CURIOUS, 
+        Mood.MEH, Mood.DISTRACTED, Mood.WAITING
+    ],
     baseColor: 'bg-[#f3f4f6]' // Gray-100
   },
   negative: { 
     label: 'Not Good', 
-    emoji: '😫',
-    moods: [Mood.SAD, Mood.ANGRY, Mood.SICK, Mood.STRESSED],
+    moods: [
+        Mood.SAD, Mood.ANGRY, Mood.SICK, 
+        Mood.STRESSED, Mood.ANXIOUS, Mood.LONELY, 
+        Mood.HURT, Mood.OVERWHELMED, Mood.GRUMPY
+    ],
     baseColor: 'bg-[#dbeafe]' // Blue-100
   }
 };
@@ -182,15 +206,30 @@ export const MOOD_COLORS: Record<Mood, string> = {
   [Mood.ROMANTIC]: 'bg-pink-200',
   [Mood.CHILL]: 'bg-purple-200',
   [Mood.GRATEFUL]: 'bg-teal-200',
+  [Mood.PROUD]: 'bg-amber-200',
+  [Mood.ENERGETIC]: 'bg-yellow-300',
+  [Mood.SILLY]: 'bg-fuchsia-200',
+  [Mood.HOPEFUL]: 'bg-sky-200',
   
   // Neutral
   [Mood.HUNGRY]: 'bg-lime-200',
   [Mood.TIRED]: 'bg-slate-200',
-  [Mood.CONFUSED]: 'bg-amber-100', // Beige
+  [Mood.CONFUSED]: 'bg-orange-100',
+  [Mood.BORED]: 'bg-gray-200',
+  [Mood.BUSY]: 'bg-blue-100',
+  [Mood.CURIOUS]: 'bg-emerald-100',
+  [Mood.MEH]: 'bg-stone-200',
+  [Mood.DISTRACTED]: 'bg-violet-100',
+  [Mood.WAITING]: 'bg-zinc-200',
 
   // Negative
   [Mood.SAD]: 'bg-blue-200',
   [Mood.ANGRY]: 'bg-red-200',
-  [Mood.SICK]: 'bg-emerald-100', // Sickly green
+  [Mood.SICK]: 'bg-emerald-100',
   [Mood.STRESSED]: 'bg-rose-200',
+  [Mood.ANXIOUS]: 'bg-indigo-200',
+  [Mood.LONELY]: 'bg-gray-300',
+  [Mood.HURT]: 'bg-red-100',
+  [Mood.OVERWHELMED]: 'bg-slate-300',
+  [Mood.GRUMPY]: 'bg-blue-300',
 };

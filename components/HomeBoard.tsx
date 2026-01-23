@@ -3,7 +3,7 @@ import { Sticky, Mood, Signal, MOOD_COLORS, TodoItem } from '../types';
 import { MoodIcon } from './MoodIcon';
 import { DoodleButton } from './DoodleButton';
 import { MoodEditor } from './MoodEditor';
-import { Plus, X, Heart, Wind, Star, Coffee, Home, AlertCircle, Trash2, Pin, Calendar } from 'lucide-react';
+import { Plus, X, Trash2, Pin, Calendar } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 
 interface HomeBoardProps {
@@ -32,16 +32,67 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ stickies, userId, getUserN
         return b.timestamp - a.timestamp;
     }); 
 
-  // 2. Helpers
+  // 2. Helpers - Custom SVGs for Signals
   const renderSignalIcon = (signal: Signal) => {
+    const props = {
+        width: 48,
+        height: 48,
+        viewBox: "0 0 100 100",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: "5",
+        strokeLinecap: "round" as const,
+        strokeLinejoin: "round" as const,
+        className: "text-black mb-1"
+    };
+
     switch (signal) {
-      case Signal.SPACE: return <Wind size={36} className="text-blue-600" />;
-      case Signal.MISS_YOU: return <Heart size={36} className="text-red-500 fill-current" />;
-      case Signal.ATTENTION: return <Star size={36} className="text-yellow-500 fill-current" />;
-      case Signal.LOVE: return <Heart size={36} className="text-pink-500 animate-pulse fill-current" />;
-      case Signal.COFFEE: return <Coffee size={36} className="text-amber-700" />;
-      case Signal.HOME: return <Home size={36} className="text-green-600" />;
-      default: return <AlertCircle />;
+      case Signal.SPACE: // Cloud
+        return (
+            <svg {...props}>
+                <path d="M25 60 Q10 60 10 45 Q10 30 25 30 Q30 10 50 15 Q70 5 80 25 Q95 25 90 45 Q95 60 75 60 L25 60 Z" fill="#bfdbfe" />
+            </svg>
+        );
+      case Signal.MISS_YOU: // Paper Plane
+        return (
+            <svg {...props}>
+                <path d="M10 50 L90 20 L50 90 L40 60 L10 50 Z" fill="#fff" stroke="black" />
+                <path d="M40 60 L90 20" stroke="black" />
+            </svg>
+        );
+      case Signal.ATTENTION: // Bell
+        return (
+            <svg {...props}>
+                <path d="M50 15 Q20 15 20 60 L10 75 L90 75 L80 60 Q80 15 50 15" fill="#fde047" stroke="black" />
+                <circle cx="50" cy="85" r="5" fill="black" stroke="none" />
+            </svg>
+        );
+      case Signal.LOVE: // Potion Bottle
+        return (
+            <svg {...props}>
+                 <path d="M40 15 L40 30 L25 80 Q25 90 50 90 Q75 90 75 80 L60 30 L60 15" fill="#fca5a5" stroke="black" />
+                 <path d="M35 15 L65 15" stroke="black" />
+                 <path d="M40 45 L60 45" stroke="black" opacity="0.2" />
+                 <path d="M30 70 L70 70" stroke="black" opacity="0.2" />
+            </svg>
+        );
+      case Signal.COFFEE: // Mug
+        return (
+            <svg {...props}>
+                <path d="M25 30 L25 70 Q25 90 50 90 Q75 90 75 70 L75 30" fill="#fdba74" stroke="black" />
+                <path d="M75 40 Q95 40 95 55 Q95 70 75 70" fill="none" stroke="black" />
+                <path d="M35 20 Q40 10 45 20" stroke="black" opacity="0.5" />
+                <path d="M55 20 Q60 10 65 20" stroke="black" opacity="0.5" />
+            </svg>
+        );
+      case Signal.HOME: // House
+        return (
+            <svg {...props}>
+                 <path d="M20 40 L50 15 L80 40 L80 85 L20 85 Z" fill="#86efac" stroke="black" />
+                 <rect x="42" y="55" width="16" height="30" fill="#fde047" stroke="black" />
+            </svg>
+        );
+      default: return null;
     }
   };
 
