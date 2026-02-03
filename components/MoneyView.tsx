@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { MoneyEntry } from '../types';
 import { DoodleButton } from './DoodleButton';
-import { Plus, Minus, X, Trash2, Calendar, Pencil } from 'lucide-react';
+import { Plus, X, Trash2, Calendar, Pencil, ArrowLeft } from 'lucide-react';
 
 interface MoneyViewProps {
   entries: MoneyEntry[];
@@ -10,10 +10,9 @@ interface MoneyViewProps {
   onAdd: (amount: number, note: string, date: number) => void;
   onEdit: (id: string, updates: Partial<MoneyEntry>) => void;
   onDelete: (id: string) => void;
-  onClose: () => void;
 }
 
-export const MoneyView: React.FC<MoneyViewProps> = ({ entries, userId, onAdd, onEdit, onDelete, onClose }) => {
+export const MoneyView: React.FC<MoneyViewProps> = ({ entries, userId, onAdd, onEdit, onDelete }) => {
   const [view, setView] = useState<'list' | 'add' | 'edit'>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -85,13 +84,15 @@ export const MoneyView: React.FC<MoneyViewProps> = ({ entries, userId, onAdd, on
   const sortedEntries = [...entries].sort((a, b) => b.timestamp - a.timestamp);
 
   const renderForm = (mode: 'add' | 'edit') => (
-    <div className="flex flex-col h-full animate-in slide-in-from-bottom-5">
+    <div className="bg-white p-6 rounded-[2rem] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-right-10">
       <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold">{mode === 'add' ? 'New Entry' : 'Edit Entry'}</h3>
-          <button onClick={() => setView('list')} className="p-2 hover:bg-gray-100 rounded-full"><X size={20}/></button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setView('list')} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"><ArrowLeft size={20}/></button>
+            <h3 className="text-xl font-bold">{mode === 'add' ? 'New Entry' : 'Edit Entry'}</h3>
+          </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           
           {/* Amount Input Group */}
           <div className="flex items-center gap-2">
@@ -131,7 +132,7 @@ export const MoneyView: React.FC<MoneyViewProps> = ({ entries, userId, onAdd, on
              />
           </div>
 
-          <div className="mt-auto pt-4">
+          <div className="pt-4">
               <DoodleButton type="submit" className="w-full text-xl py-4" variant={sign === '+' ? 'primary' : 'danger'}>
                  {mode === 'add' ? (sign === '+' ? 'Add Money' : 'Track Expense') : 'Save Changes'}
               </DoodleButton>
@@ -140,77 +141,63 @@ export const MoneyView: React.FC<MoneyViewProps> = ({ entries, userId, onAdd, on
     </div>
   );
 
+  if (view !== 'list') {
+      return renderForm(view);
+  }
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-        <div className="bg-[#fffbeb] w-full max-w-sm h-[80vh] rounded-[2.5rem] border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col relative">
-            
-            {/* Main List View */}
-            {view === 'list' && (
-                <>
-                   {/* Header: Total */}
-                   <div className="p-6 pb-4 bg-white border-b-2 border-black/10 shrink-0">
-                       <div className="flex justify-between items-start mb-2">
-                           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Current Total</span>
-                           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full"><X size={20}/></button>
-                       </div>
-                       <h2 className={`text-5xl font-black font-[Patrick_Hand] tracking-tight ${total < 0 ? 'text-red-500' : 'text-gray-900'}`}>
-                           {formatCurrency(total)}
-                       </h2>
-                   </div>
+    <div className="space-y-4 animate-in fade-in slide-in-from-left-4">
+        {/* Header Card */}
+        <div className="bg-white rounded-[2rem] border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="p-6 flex flex-col items-center justify-center bg-emerald-50 text-center">
+                <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Total Balance</span>
+                <h2 className={`text-5xl font-black font-[Patrick_Hand] tracking-tight ${total < 0 ? 'text-red-500' : 'text-gray-900'}`}>
+                    {formatCurrency(total)}
+                </h2>
+            </div>
+            {/* Quick Add Bar */}
+            <div className="p-3 bg-white border-t-2 border-black/10">
+                <DoodleButton onClick={handleStartAdd} className="w-full flex items-center justify-center gap-2 py-3 !text-lg !rounded-xl">
+                    <Plus size={24} strokeWidth={3} /> Add Entry
+                </DoodleButton>
+            </div>
+        </div>
 
-                   {/* Scrollable List */}
-                   <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                       {sortedEntries.length === 0 && (
-                           <div className="flex flex-col items-center justify-center h-full text-gray-300 opacity-60">
-                               <div className="text-6xl mb-2">💸</div>
-                               <p className="font-bold text-xl font-[Patrick_Hand]">Start from zero</p>
-                           </div>
-                       )}
-
-                       {sortedEntries.map(entry => {
-                           const isIncome = entry.amount >= 0;
-                           return (
-                               <div key={entry.id} className="group flex items-center gap-3 p-3 bg-white rounded-xl border-2 border-black/5 hover:border-black/20 transition-all shadow-sm">
-                                   <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-black font-bold text-lg shrink-0 ${isIncome ? 'bg-[#86efac]' : 'bg-red-200'}`}>
-                                       {isIncome ? '+' : '-'}
-                                   </div>
-                                   <div className="flex-1 min-w-0">
-                                       <div className="font-bold text-lg leading-none truncate">{entry.note}</div>
-                                       <div className="text-xs font-bold text-gray-400 flex items-center gap-1 mt-1">
-                                           <Calendar size={10} /> {getRelativeDate(entry.timestamp)}
-                                       </div>
-                                   </div>
-                                   <div className="text-right">
-                                       <div className={`font-bold font-mono text-lg ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
-                                           {Math.abs(entry.amount)}
-                                       </div>
-                                       
-                                       <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                           <button onClick={() => handleStartEdit(entry)} className="text-gray-400 hover:text-black"><Pencil size={12} /></button>
-                                           <button onClick={() => { if(confirm("Delete this?")) onDelete(entry.id) }} className="text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
-                                       </div>
-                                   </div>
-                               </div>
-                           );
-                       })}
-                   </div>
-
-                   {/* Footer: Add Action */}
-                   <div className="p-4 bg-white/50 border-t-2 border-black/10 shrink-0">
-                       <DoodleButton onClick={handleStartAdd} className="w-full flex items-center justify-center gap-2 py-4">
-                           <Plus size={24} strokeWidth={3} /> Add Entry
-                       </DoodleButton>
-                   </div>
-                </>
-            )}
-
-            {/* Form View (Overlay inside container) */}
-            {(view === 'add' || view === 'edit') && (
-                <div className="absolute inset-0 bg-[#fffbeb] p-6 z-10 flex flex-col">
-                    {renderForm(view)}
+        {/* List */}
+        <div className="space-y-2">
+            {sortedEntries.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-300 opacity-60">
+                    <div className="text-6xl mb-2">💸</div>
+                    <p className="font-bold text-xl font-[Patrick_Hand]">No records yet</p>
                 </div>
             )}
 
+            {sortedEntries.map(entry => {
+                const isIncome = entry.amount >= 0;
+                return (
+                    <div key={entry.id} className="group flex items-center gap-3 p-3 bg-white rounded-xl border-2 border-black/5 hover:border-black/20 transition-all shadow-sm">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-black font-bold text-lg shrink-0 ${isIncome ? 'bg-[#86efac]' : 'bg-red-200'}`}>
+                            {isIncome ? '+' : '-'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="font-bold text-lg leading-none truncate">{entry.note}</div>
+                            <div className="text-xs font-bold text-gray-400 flex items-center gap-1 mt-1">
+                                <Calendar size={10} /> {getRelativeDate(entry.timestamp)}
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className={`font-bold font-mono text-lg ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
+                                {Math.abs(entry.amount)}
+                            </div>
+                            
+                            <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleStartEdit(entry)} className="text-gray-400 hover:text-black"><Pencil size={12} /></button>
+                                <button onClick={() => { if(confirm("Delete this?")) onDelete(entry.id) }} className="text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     </div>
   );

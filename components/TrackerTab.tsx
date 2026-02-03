@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Activity, ActivityNature, RoomData, MoneyEntry } from '../types';
 import { DoodleButton } from './DoodleButton';
-import { Plus, BarChart3, X, Trash2, ArrowLeft, User, Trophy, Calendar, CheckCircle2, Repeat, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, BarChart3, X, Trash2, ArrowLeft, User, Trophy, Repeat, CheckCircle2, DollarSign, TrendingUp, TrendingDown, Palette } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { addMoneyEntry, editMoneyEntry, deleteMoneyEntry } from '../services/db';
 import { MoneyView } from './MoneyView';
@@ -26,10 +26,13 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
   onLogOccurrence,
   onDeleteActivity 
 }) => {
-  const [view, setView] = useState<'board' | 'create' | 'log' | 'summary' | 'money'>('board');
+  // Navigation State
+  const [subTab, setSubTab] = useState<'hobbies' | 'finance'>('hobbies');
+  const [view, setView] = useState<'board' | 'create' | 'log' | 'summary'>('board');
+  
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   
-  // Form States
+  // Form States (Hobbies)
   const [newTitle, setNewTitle] = useState('');
   const [newNature, setNewNature] = useState<ActivityNature>('ongoing');
   const [newProjectUnit, setNewProjectUnit] = useState('');
@@ -45,19 +48,6 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
 
   // Money Helpers
   const moneyEntries = roomData.money || [];
-  const moneyTotal = moneyEntries.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-  const lastMoneyUpdate = moneyEntries.length > 0 
-    ? Math.max(...moneyEntries.map(e => e.timestamp)) 
-    : 0;
-
-  const getRelativeTime = (ts: number) => {
-    if (ts === 0) return 'No activity';
-    const diff = Date.now() - ts;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 24) return 'Today';
-    if (hours < 48) return 'Yesterday';
-    return new Date(ts).toLocaleDateString();
-  };
   
   // --- Helpers ---
   const getStats = (activity: Activity) => {
@@ -468,56 +458,13 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
      )
   };
 
-  const renderBoard = () => (
-    <>
-       {/* Header Actions */}
-       <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-             <h2 className="text-xl font-bold">Financial Tracker</h2>
-             <button onClick={() => setView('summary')} className="p-1.5 bg-white border-2 border-black/10 rounded-lg hover:border-black transition-colors text-gray-400 hover:text-black" title="Monthly Summary">
-                <BarChart3 size={16} />
-             </button>
-          </div>
-       </div>
-
-       {/* The Board Grid */}
-       <div className="space-y-4 pb-24">
-          
-          {/* MONEY CARD - Always at top */}
-          <div 
-            onClick={() => setView('money')}
-            className="w-full bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden cursor-pointer hover:scale-[1.01] transition-transform"
-          >
-             <div className="bg-emerald-50 p-3 border-b-2 border-black/10 flex justify-between items-center">
-                 <div className="flex items-center gap-2">
-                    <DollarSign size={14} className="text-emerald-500 shrink-0" />
-                    <h3 className="font-bold text-lg leading-tight text-emerald-900">Our Piggy Bank</h3>
-                 </div>
-                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                     {getRelativeTime(lastMoneyUpdate)}
-                 </div>
-             </div>
-             
-             <div className="p-6 flex items-center justify-between">
-                <div>
-                    <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total</div>
-                    <div className={`text-4xl font-black font-[Patrick_Hand] ${moneyTotal < 0 ? 'text-red-500' : 'text-gray-800'}`}>
-                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(moneyTotal)}
-                    </div>
-                </div>
-                <div className="bg-emerald-100 p-3 rounded-full border-2 border-black">
-                    <DollarSign size={24} className="text-emerald-700" />
-                </div>
-             </div>
-          </div>
-
-
-          {/* ACTIVITY CARDS */}
+  const renderHobbies = () => (
+      <div className="space-y-4 pb-24 animate-in fade-in slide-in-from-left-4">
           {(activities || []).length === 0 ? (
               <EmptyState 
                 type="tracker" 
                 message="Track Activities" 
-                subMessage="Finance is tracked above. Add hobbies here!"
+                subMessage="Add hobbies like Gym, Reading, or Art!"
               />
           ) : (
               (activities || []).map((activity, i) => {
@@ -607,25 +554,56 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
               <Plus size={32} />
               <span className="font-bold">Add New Activity</span>
           </button>
-       </div>
-    </>
+      </div>
   );
 
   return (
     <div className="relative min-h-[60vh]">
-       {view === 'board' && renderBoard()}
+       
        {view === 'create' && renderCreate()}
        {view === 'log' && renderLog()}
        {view === 'summary' && renderSummary()}
-       {view === 'money' && (
-           <MoneyView 
-              entries={moneyEntries}
-              userId={userId}
-              onAdd={handleAddMoney}
-              onEdit={handleEditMoney}
-              onDelete={handleDeleteMoney}
-              onClose={() => setView('board')}
-           />
+       
+       {view === 'board' && (
+           <>
+               {/* 1. Header Navigation */}
+               <div className="flex gap-2 items-center mb-6">
+                    <div className="flex-1 flex bg-black/5 p-1 rounded-xl">
+                        <button 
+                        onClick={() => setSubTab('hobbies')}
+                        className={`flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${subTab === 'hobbies' ? 'bg-white shadow-sm border border-black/10 text-black' : 'text-gray-500'}`}
+                        >
+                            <Palette size={14} /> Hobbies
+                        </button>
+                        <button 
+                        onClick={() => setSubTab('finance')}
+                        className={`flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${subTab === 'finance' ? 'bg-white shadow-sm border border-black/10 text-black' : 'text-gray-500'}`}
+                        >
+                            <DollarSign size={14} /> Finance
+                        </button>
+                    </div>
+                    
+                    <button 
+                        onClick={() => setView('summary')}
+                        className="p-3 rounded-xl border-2 bg-white border-black/10 text-gray-400 hover:text-black hover:border-black transition-all"
+                        title="Recap"
+                    >
+                        <BarChart3 size={20} />
+                    </button>
+               </div>
+
+               {/* 2. Content */}
+               {subTab === 'hobbies' && renderHobbies()}
+               {subTab === 'finance' && (
+                    <MoneyView 
+                        entries={moneyEntries}
+                        userId={userId}
+                        onAdd={handleAddMoney}
+                        onEdit={handleEditMoney}
+                        onDelete={handleDeleteMoney}
+                    />
+               )}
+           </>
        )}
     </div>
   );
