@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface EmptyStateProps {
@@ -36,21 +37,22 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ type, message, subMessag
       case 'tracker':
         return (
           <svg viewBox="0 0 200 160" className="w-48 h-48 mx-auto animate-in zoom-in duration-500">
-            {/* Colorful Clipboard */}
-            <rect x="60" y="20" width="80" height="110" rx="5" fill="#fff" stroke="black" strokeWidth="3" transform="rotate(-5 100 80)"/>
-            <rect x="65" y="10" width="70" height="20" rx="2" fill="#fde047" stroke="black" strokeWidth="3" transform="rotate(-5 100 80)"/>
-            {/* Checks */}
-            <circle cx="85" cy="60" r="8" fill="#86efac" stroke="black" strokeWidth="2" transform="rotate(-5 100 80)"/>
-            <path d="M82 60 L85 63 L90 57" stroke="black" strokeWidth="2" fill="none" transform="rotate(-5 100 80)"/>
-            <rect x="100" y="58" width="30" height="4" rx="2" fill="#e5e7eb" transform="rotate(-5 100 80)"/>
+            {/* Wallet / Ledger */}
+            <rect x="50" y="40" width="100" height="80" rx="5" fill="#fff" stroke="black" strokeWidth="3" />
+            <path d="M50 60 L150 60" stroke="black" strokeWidth="2" />
+            <path d="M110 50 L110 110" stroke="black" strokeWidth="2" opacity="0.1" />
+            
+            {/* Coins */}
+            <circle cx="140" cy="110" r="12" fill="#fde047" stroke="black" strokeWidth="2" />
+            <text x="140" y="114" fontSize="12" textAnchor="middle" fill="black" fontWeight="bold">$</text>
+            
+            <circle cx="125" cy="125" r="12" fill="#86efac" stroke="black" strokeWidth="2" />
+            <text x="125" y="129" fontSize="12" textAnchor="middle" fill="black" fontWeight="bold">$</text>
 
-            <circle cx="83" cy="85" r="8" fill="#fca5a5" stroke="black" strokeWidth="2" transform="rotate(-5 100 80)"/>
-            <path d="M80 85 L83 88 L88 82" stroke="black" strokeWidth="2" fill="none" transform="rotate(-5 100 80)"/>
-             <rect x="98" y="83" width="30" height="4" rx="2" fill="#e5e7eb" transform="rotate(-5 100 80)"/>
+            <circle cx="155" cy="125" r="10" fill="#fca5a5" stroke="black" strokeWidth="2" />
 
              {/* Pencil */}
-             <path d="M160 100 L140 140 L130 142 L132 132 L152 92 Z" fill="#fde047" stroke="black" strokeWidth="3" />
-             <path d="M130 142 L135 145" stroke="black" strokeWidth="2" />
+             <path d="M40 100 L20 140 L10 142 L12 132 L32 92 Z" fill="#fde047" stroke="black" strokeWidth="3" transform="rotate(45 30 120)" />
           </svg>
         );
       case 'together':

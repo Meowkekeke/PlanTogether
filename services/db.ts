@@ -1,6 +1,7 @@
+
 import { doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, Unsubscribe, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
-import { RoomData, Mood, UserState, InteractionType, MoodEntry, Habit, TodoItem, Goal, HabitType, TogetherCategory, Activity, ActivityNature, ActivityLog, Sticky, StickyType, Signal, GroceryItem } from '../types';
+import { RoomData, Mood, UserState, InteractionType, MoodEntry, Habit, TodoItem, Goal, HabitType, TogetherCategory, Activity, ActivityNature, ActivityLog, Sticky, StickyType, Signal, GroceryItem, MoneyEntry } from '../types';
 
 const ROOM_COLLECTION = 'couple_rooms';
 
@@ -45,6 +46,7 @@ export const createRoom = async (userId: string, userName: string): Promise<stri
     logs: [],
     stickies: [], // New Home Board
     groceries: [], // Grocery List
+    money: [], // Money Tracker
     activities: [], 
     habits: [],
     todos: [],
@@ -125,6 +127,7 @@ export const clearGardenData = async (code: string) => {
     logs: [],
     stickies: [],
     groceries: [],
+    money: [],
     activities: [],
     habits: [],
     todos: [],
@@ -134,6 +137,48 @@ export const clearGardenData = async (code: string) => {
   // Use setDoc to completely overwrite the document, ensuring no stray fields remain
   await setDoc(roomRef, freshData);
 };
+
+// --- MONEY TRACKER ---
+
+export const addMoneyEntry = async (code: string, userId: string, amount: number, note: string, timestamp?: number) => {
+  const roomRef = doc(db, ROOM_COLLECTION, code);
+  const entry: MoneyEntry = {
+    id: getUUID(),
+    userId,
+    amount,
+    note,
+    timestamp: timestamp || Date.now()
+  };
+  await updateDoc(roomRef, { money: arrayUnion(entry) });
+};
+
+export const editMoneyEntry = async (code: string, entryId: string, updates: Partial<MoneyEntry>) => {
+  const roomRef = doc(db, ROOM_COLLECTION, code);
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+  
+  const data = snap.data() as RoomData;
+  const currentMoney = data.money || [];
+
+  const updatedMoney = currentMoney.map(m => 
+    m.id === entryId ? { ...m, ...updates } : m
+  );
+  
+  await updateDoc(roomRef, { money: updatedMoney });
+};
+
+export const deleteMoneyEntry = async (code: string, entryId: string) => {
+  const roomRef = doc(db, ROOM_COLLECTION, code);
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+  
+  const data = snap.data() as RoomData;
+  const currentMoney = data.money || [];
+  
+  const updatedMoney = currentMoney.filter(m => m.id !== entryId);
+  await updateDoc(roomRef, { money: updatedMoney });
+};
+
 
 // --- GROCERY LIST ---
 

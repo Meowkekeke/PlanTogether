@@ -66,6 +66,15 @@ export interface GroceryItem {
   checkedAt?: number; // Timestamp when it was checked (for 12h removal logic)
 }
 
+// --- Feature: Money Tracker ---
+export interface MoneyEntry {
+  id: string;
+  userId: string;
+  amount: number; // Positive for income, Negative for expense
+  note: string;
+  timestamp: number;
+}
+
 // --- Feature 2: Tracker (Activities) ---
 export type ActivityNature = 'ongoing' | 'session'; // "Something I keep doing" vs "Session"
 
@@ -170,6 +179,7 @@ export interface RoomData {
   // Collections
   stickies: Sticky[]; // The new Home Board
   groceries: GroceryItem[]; // Shared Grocery List
+  money: MoneyEntry[]; // Shared Money Tracker
   activities: Activity[]; // The new tracker
   habits?: Habit[]; // Legacy, can remain empty
   todos: TodoItem[];

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Sprout, Copy, LogOut, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Settings, Trash2, RefreshCw, X, Eraser } from 'lucide-react';
 import { 
@@ -448,6 +449,9 @@ const App: React.FC = () => {
     );
   }
 
+  // Helper for safe money total
+  const moneyTotal = (roomData.money || []).reduce((acc, c) => acc + c.amount, 0);
+
   return (
     <div className="min-h-screen flex flex-col max-w-md md:max-w-2xl mx-auto relative bg-[#fefce8]">
       <BackgroundDoodles />
@@ -473,6 +477,7 @@ const App: React.FC = () => {
                 <Sprout className="text-black w-4 h-4" />
             </div>
             <h1 className="font-bold text-lg tracking-tight">LoveSync</h1>
+            
             </div>
             
             <div className="flex items-center gap-2">
@@ -500,7 +505,9 @@ const App: React.FC = () => {
         {mainTab === 'mood' && (
             <div className="animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-2 px-2">
-                   <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Shared Board</span>
+                   <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Shared Board</span>
+                   </div>
                    {/* Legend */}
                    <div className="flex gap-3 text-[10px] font-bold">
                        <div className="flex items-center gap-1"><div className="w-3 h-3 bg-[#86efac] border border-black rounded-full"></div> Me</div>
@@ -512,6 +519,7 @@ const App: React.FC = () => {
                    stickies={roomData.stickies || []}
                    groceries={roomData.groceries || []}
                    userId={userId}
+                   moneyTotal={moneyTotal}
                    getUserName={getUserName}
                    onAddSticky={handleAddSticky}
                    onDeleteSticky={handleDeleteSticky}

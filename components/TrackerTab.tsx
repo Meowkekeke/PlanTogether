@@ -1,13 +1,16 @@
+
 import React, { useState } from 'react';
-import { Activity, ActivityNature, RoomData } from '../types';
+import { Activity, ActivityNature, RoomData, MoneyEntry } from '../types';
 import { DoodleButton } from './DoodleButton';
-import { Plus, BarChart3, X, Trash2, ArrowLeft, User, Trophy, Calendar, CheckCircle2, Repeat } from 'lucide-react';
+import { Plus, BarChart3, X, Trash2, ArrowLeft, User, Trophy, Calendar, CheckCircle2, Repeat, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 import { EmptyState } from './EmptyState';
+import { addMoneyEntry, editMoneyEntry, deleteMoneyEntry } from '../services/db';
+import { MoneyView } from './MoneyView';
 
 interface TrackerTabProps {
   activities: Activity[];
   userId: string;
-  roomData: RoomData; // Needed for checking partner ID
+  roomData: RoomData; 
   partnerName: string;
   onAddActivity: (title: string, nature: ActivityNature, projectUnit?: string) => void;
   onLogOccurrence: (activityId: string, details: { timestamp: number, durationMinutes?: number, quantity?: number, note?: string, isMilestone?: boolean }) => void;
@@ -23,10 +26,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
   onLogOccurrence,
   onDeleteActivity 
 }) => {
-  // Views: 'board' | 'create' | 'log' | 'summary'
-  const [view, setView] = useState<'board' | 'create' | 'log' | 'summary'>('board');
-  
-  // Selection States
+  const [view, setView] = useState<'board' | 'create' | 'log' | 'summary' | 'money'>('board');
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   
   // Form States
@@ -43,11 +43,28 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
   // Summary State
   const [summaryType, setSummaryType] = useState<'monthly' | 'annual'>('monthly');
 
+  // Money Helpers
+  const moneyEntries = roomData.money || [];
+  const moneyTotal = moneyEntries.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const lastMoneyUpdate = moneyEntries.length > 0 
+    ? Math.max(...moneyEntries.map(e => e.timestamp)) 
+    : 0;
+
+  const getRelativeTime = (ts: number) => {
+    if (ts === 0) return 'No activity';
+    const diff = Date.now() - ts;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 24) return 'Today';
+    if (hours < 48) return 'Yesterday';
+    return new Date(ts).toLocaleDateString();
+  };
+  
   // --- Helpers ---
   const getStats = (activity: Activity) => {
-    // Total lifetime stats
-    const myLogs = activity.logs.filter(l => l.userId === userId);
-    const partnerLogs = activity.logs.filter(l => l.userId !== userId);
+    // Robust check for missing logs
+    const logs = activity.logs || [];
+    const myLogs = logs.filter(l => l.userId === userId);
+    const partnerLogs = logs.filter(l => l.userId !== userId);
     
     return {
         me: {
@@ -96,6 +113,19 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
     
     setView('board');
     setSelectedActivity(null);
+  };
+
+  // Safe fallback for roomCode access
+  const roomCode = localStorage.getItem('lovesync_code');
+
+  const handleAddMoney = async (amount: number, note: string, date: number) => {
+      if(roomCode) await addMoneyEntry(roomCode, userId, amount, note, date);
+  };
+  const handleEditMoney = async (id: string, updates: Partial<MoneyEntry>) => {
+      if(roomCode) await editMoneyEntry(roomCode, id, updates);
+  };
+  const handleDeleteMoney = async (id: string) => {
+      if(roomCode) await deleteMoneyEntry(roomCode, id);
   };
 
   // --- Render Views ---
@@ -240,7 +270,19 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
      const monthName = now.toLocaleString('default', { month: 'long' });
      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
      
-     // Labels
+     // 1. Calculate Money Summary
+     const relevantMoney = moneyEntries.filter(e => {
+         const d = new Date(e.timestamp);
+         if (d.getFullYear() !== currentYear) return false;
+         if (summaryType === 'monthly' && d.getMonth() !== currentMonth) return false;
+         return true;
+     });
+     
+     const income = relevantMoney.filter(e => (e.amount || 0) > 0).reduce((acc, curr) => acc + (curr.amount || 0), 0);
+     const expense = relevantMoney.filter(e => (e.amount || 0) < 0).reduce((acc, curr) => acc + Math.abs(curr.amount || 0), 0);
+     const net = income - expense;
+
+     // 2. Activity Data
      const monthlyLabels = Array.from({length: daysInMonth}, (_, i) => i + 1);
      const annualLabels = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
@@ -250,7 +292,10 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
         let totalSessions = 0;
         let totalProjects = 0;
 
-        activity.logs.forEach(l => {
+        // Safety check for logs
+        const logs = activity.logs || [];
+
+        logs.forEach(l => {
             const d = new Date(l.timestamp);
             // Only process logs from the current year
             if (d.getFullYear() === currentYear) {
@@ -274,10 +319,12 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
      };
     
      // Check if ANY activity has data for the current view to show generic empty state
-     const hasAnyData = activities.some(a => {
+     const hasActivityData = (activities || []).some(a => {
          const { totalSessions } = getChartData(a);
          return totalSessions > 0;
      });
+     
+     const hasFinancialData = relevantMoney.length > 0;
 
      return (
          <div className="space-y-6 animate-in slide-in-from-bottom-4">
@@ -302,8 +349,43 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                 </button>
              </div>
 
-             <div className="space-y-6">
-                 {activities.map(act => {
+             <div className="space-y-6 pb-24">
+                 
+                 {/* MONEY SUMMARY CARD */}
+                 <div className="bg-white p-5 rounded-3xl border-4 border-black shadow-sm">
+                     <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
+                         <DollarSign className="text-emerald-500" /> Piggy Bank Recap
+                     </h3>
+                     
+                     <div className="flex gap-4">
+                         <div className="flex-1 bg-green-50 p-3 rounded-xl border border-green-100">
+                             <div className="text-[10px] font-bold text-green-700 uppercase tracking-widest flex items-center gap-1 mb-1">
+                                 <TrendingUp size={12} /> Income
+                             </div>
+                             <div className="text-2xl font-black font-[Patrick_Hand] text-green-600">
+                                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(income)}
+                             </div>
+                         </div>
+                         <div className="flex-1 bg-red-50 p-3 rounded-xl border border-red-100">
+                             <div className="text-[10px] font-bold text-red-700 uppercase tracking-widest flex items-center gap-1 mb-1">
+                                 <TrendingDown size={12} /> Expense
+                             </div>
+                             <div className="text-2xl font-black font-[Patrick_Hand] text-red-600">
+                                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(expense)}
+                             </div>
+                         </div>
+                     </div>
+                     
+                     <div className="mt-4 pt-4 border-t-2 border-black/5 flex justify-between items-center">
+                         <span className="text-xs font-bold text-gray-400 uppercase">Net Flow</span>
+                         <span className={`text-xl font-black ${net >= 0 ? 'text-gray-800' : 'text-red-500'}`}>
+                              {net > 0 ? '+' : ''}{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(net)}
+                         </span>
+                     </div>
+                 </div>
+
+                 {/* ACTIVITY CHARTS */}
+                 {(activities || []).map(act => {
                      const { counts, max, totalSessions, totalProjects } = getChartData(act);
                      if(totalSessions === 0) return null;
                      
@@ -378,7 +460,7 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
                      )
                  })}
                  
-                 {!hasAnyData && (
+                 {!hasActivityData && !hasFinancialData && (
                      <EmptyState type="tracker" message="No data for this period" />
                  )}
              </div>
@@ -391,23 +473,54 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
        {/* Header Actions */}
        <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
-             <h2 className="text-xl font-bold">Your Activities</h2>
+             <h2 className="text-xl font-bold">Financial Tracker</h2>
              <button onClick={() => setView('summary')} className="p-1.5 bg-white border-2 border-black/10 rounded-lg hover:border-black transition-colors text-gray-400 hover:text-black" title="Monthly Summary">
                 <BarChart3 size={16} />
              </button>
           </div>
        </div>
 
-       {/* The Board */}
+       {/* The Board Grid */}
        <div className="space-y-4 pb-24">
-          {activities.length === 0 ? (
+          
+          {/* MONEY CARD - Always at top */}
+          <div 
+            onClick={() => setView('money')}
+            className="w-full bg-white rounded-2xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden cursor-pointer hover:scale-[1.01] transition-transform"
+          >
+             <div className="bg-emerald-50 p-3 border-b-2 border-black/10 flex justify-between items-center">
+                 <div className="flex items-center gap-2">
+                    <DollarSign size={14} className="text-emerald-500 shrink-0" />
+                    <h3 className="font-bold text-lg leading-tight text-emerald-900">Our Piggy Bank</h3>
+                 </div>
+                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                     {getRelativeTime(lastMoneyUpdate)}
+                 </div>
+             </div>
+             
+             <div className="p-6 flex items-center justify-between">
+                <div>
+                    <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total</div>
+                    <div className={`text-4xl font-black font-[Patrick_Hand] ${moneyTotal < 0 ? 'text-red-500' : 'text-gray-800'}`}>
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(moneyTotal)}
+                    </div>
+                </div>
+                <div className="bg-emerald-100 p-3 rounded-full border-2 border-black">
+                    <DollarSign size={24} className="text-emerald-700" />
+                </div>
+             </div>
+          </div>
+
+
+          {/* ACTIVITY CARDS */}
+          {(activities || []).length === 0 ? (
               <EmptyState 
                 type="tracker" 
-                message="Start Tracking!" 
-                subMessage="Log your habits, hobbies, or daily wins."
+                message="Track Activities" 
+                subMessage="Finance is tracked above. Add hobbies here!"
               />
           ) : (
-              activities.map((activity, i) => {
+              (activities || []).map((activity, i) => {
                   const stats = getStats(activity);
                   const unitNamePlural = (activity.projectUnit ? activity.projectUnit + 's' : 'Projects');
                   
@@ -504,6 +617,16 @@ export const TrackerTab: React.FC<TrackerTabProps> = ({
        {view === 'create' && renderCreate()}
        {view === 'log' && renderLog()}
        {view === 'summary' && renderSummary()}
+       {view === 'money' && (
+           <MoneyView 
+              entries={moneyEntries}
+              userId={userId}
+              onAdd={handleAddMoney}
+              onEdit={handleEditMoney}
+              onDelete={handleDeleteMoney}
+              onClose={() => setView('board')}
+           />
+       )}
     </div>
   );
 };

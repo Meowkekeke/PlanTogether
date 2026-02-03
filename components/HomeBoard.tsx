@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Sticky, Mood, Signal, GroceryItem } from '../types';
+import { Sticky, Mood, Signal, GroceryItem, MoneyEntry } from '../types';
 import { MoodIcon } from './MoodIcon';
 import { DoodleButton } from './DoodleButton';
 import { MoodEditor } from './MoodEditor';
@@ -11,6 +12,7 @@ interface HomeBoardProps {
   stickies: Sticky[];
   groceries: GroceryItem[];
   userId: string;
+  moneyTotal: number;
   getUserName: (id: string) => string;
   onAddSticky: (type: any, content: any) => void;
   onDeleteSticky: (id: string) => void;
@@ -20,7 +22,7 @@ interface HomeBoardProps {
 }
 
 export const HomeBoard: React.FC<HomeBoardProps> = ({ 
-    stickies, groceries, userId, getUserName, 
+    stickies, groceries, userId, getUserName, moneyTotal,
     onAddSticky, onDeleteSticky, onTogglePin,
     onAddGrocery, onToggleGrocery
 }) => {
@@ -181,6 +183,36 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
            <span>Stickies disappear in 4h unless pinned</span>
            <Pin size={10} fill="currentColor" />
         </div>
+      </div>
+
+      {/* Money Bar - Inserted Here */}
+      <div className="w-full max-w-lg px-2 mb-2 relative z-20 animate-in slide-in-from-top-4">
+          <div className="bg-white border-4 border-black rounded-2xl p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between relative overflow-hidden">
+              {/* Decorative Background for Money Bar */}
+              <div className="absolute inset-0 bg-emerald-50/50 pointer-events-none" />
+              
+              <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-12 h-12 shrink-0">
+                      {/* Doodle Star Coin SVG */}
+                      <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm">
+                        {/* Coin Body */}
+                        <circle cx="50" cy="50" r="42" fill="#fde047" stroke="black" strokeWidth="4" />
+                        {/* Inner Rim Highlight */}
+                        <circle cx="50" cy="50" r="34" fill="none" stroke="white" strokeWidth="3" opacity="0.5" />
+                        {/* Star */}
+                        <path d="M50 25 L56.5 42.5 L75 42.5 L60 55 L65.5 72.5 L50 62.5 L34.5 72.5 L40 55 L25 42.5 L43.5 42.5 Z" fill="#fff" stroke="black" strokeWidth="3" strokeLinejoin="round" />
+                      </svg>
+                  </div>
+                  <div className="flex flex-col">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Our Budget</span>
+                      <span className="font-bold text-lg leading-none">Piggy Bank</span>
+                  </div>
+              </div>
+
+              <div className={`relative z-10 text-3xl font-black font-[Patrick_Hand] ${moneyTotal < 0 ? 'text-red-500' : 'text-gray-800'}`}>
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(moneyTotal)}
+              </div>
+          </div>
       </div>
 
       {/* Empty State */}
