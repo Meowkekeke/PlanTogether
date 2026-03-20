@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Sprout, Copy, LogOut, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Settings, Trash2, RefreshCw, X, Eraser } from 'lucide-react';
+import { Sprout, Copy, LogOut, Cloud, Sun, Flower, Leaf, User, Users, Plus, Smile, BarChart3, ListTodo, Trophy, Settings, Trash2, RefreshCw, X, Eraser, UserMinus } from 'lucide-react';
 import { 
   createRoom, joinRoom, subscribeToRoom, sendInteraction,
   addActivity, logActivityOccurrence, deleteActivity,
@@ -8,7 +8,7 @@ import {
   addGoal, incrementGoal, deleteGoal,
   addSticky, deleteSticky, toggleStickyPin,
   addGroceryItem, toggleGroceryItem,
-  deleteRoom, clearGardenData,
+  deleteRoom, clearGardenData, kickPartner,
   getUUID
 } from './services/db';
 import { RoomData, InteractionType, ActivityNature, Activity, Goal } from './types';
@@ -64,6 +64,23 @@ const App: React.FC = () => {
     if (!roomCode) return;
 
     const unsubscribe = subscribeToRoom(roomCode, (data) => {
+      // Check if kicked
+      if (data.hostId !== userId && data.guestId !== userId) {
+        localStorage.removeItem('lovesync_code');
+        setRoomCode(null);
+        setRoomData(null);
+        setShowSettings(false);
+        setConfirmConfig({
+          isOpen: true,
+          title: "Removed",
+          message: "You have been removed from the garden.",
+          onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+          singleButton: true,
+          confirmText: 'Okay!'
+        });
+        return;
+      }
+
       setRoomData(data);
 
       // Handle Interactions
@@ -226,6 +243,26 @@ const App: React.FC = () => {
           },
           true,
           "YES, WIPE EVERYTHING"
+      );
+  };
+
+  const handleKickPartner = () => {
+      requestConfirm(
+          "Kick Partner?", 
+          "Are you sure you want to remove your partner from the garden? They will need the invite link to join again. No data will be deleted.", 
+          async () => {
+              if (roomCode) {
+                  try {
+                      await kickPartner(roomCode, userId);
+                      showAlert("Partner Removed", "Your partner has been removed from the garden.");
+                  } catch (e) {
+                      console.error(e);
+                      showAlert("Error", "Could not remove partner.");
+                  }
+              }
+          }, 
+          true,
+          "Remove Partner"
       );
   };
 
@@ -640,6 +677,20 @@ const App: React.FC = () => {
                               <div className="text-xs text-gray-500">Delete all memory (both users).</div>
                           </div>
                       </button>
+
+                      {/* Kick Partner */}
+                      {roomData?.guestId && (
+                          <button 
+                            onClick={handleKickPartner}
+                            className="w-full p-4 rounded-xl border-2 border-orange-200 bg-orange-50 flex items-center gap-3 hover:bg-orange-100 transition-colors text-left"
+                          >
+                              <div className="bg-orange-200 p-2 rounded-lg border border-black"><UserMinus size={20} className="text-orange-700" /></div>
+                              <div>
+                                  <div className="font-bold text-orange-800">Kick Partner</div>
+                                  <div className="text-xs text-orange-600">Remove them from the garden.</div>
+                              </div>
+                          </button>
+                      )}
 
                        {/* Delete */}
                        <button 
