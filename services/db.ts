@@ -97,6 +97,40 @@ export const deleteRoom = async (code: string) => {
   await deleteDoc(roomRef);
 };
 
+export const kickPartner = async (code: string, currentUserId: string) => {
+  const roomRef = doc(db, ROOM_COLLECTION, code);
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+  
+  const data = snap.data() as RoomData;
+  
+  if (data.hostId === currentUserId) {
+    // I am the host, kick the guest
+    await updateDoc(roomRef, {
+      guestId: null, // use null to clear it
+      guestState: {
+        name: 'Waiting for partner...',
+        mood: Mood.HAPPY,
+        note: '',
+        lastUpdated: Date.now()
+      }
+    });
+  } else if (data.guestId === currentUserId) {
+    // I am the guest, kick the host (I become the host)
+    await updateDoc(roomRef, {
+      hostId: data.guestId,
+      hostState: data.guestState,
+      guestId: null,
+      guestState: {
+        name: 'Waiting for partner...',
+        mood: Mood.HAPPY,
+        note: '',
+        lastUpdated: Date.now()
+      }
+    });
+  }
+};
+
 // --- CLEAR GARDEN DATA (RESET) ---
 export const clearGardenData = async (code: string) => {
   const roomRef = doc(db, ROOM_COLLECTION, code);
